@@ -61,8 +61,11 @@ class DanaRsCommands {
         BasalSetProfileBasalRateCommand(profileNumber, hourlyRatesUnits)
 
     fun apsBasalSetTemporaryBasal(percent: Int) = ApsBasalSetTemporaryBasalCommand(percent)
-    fun apsHistoryEvents(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) =
-        ApsHistoryEventsCommand(fromMillis, zoneId)
+    fun apsHistoryEvents(
+        fromMillis: Long,
+        zoneId: ZoneId = ZoneId.systemDefault(),
+        useUtcLayout: Boolean = false,
+    ) = ApsHistoryEventsCommand(fromMillis, zoneId, useUtcLayout)
 
     fun apsSetEventHistory(
         packetType: Int,

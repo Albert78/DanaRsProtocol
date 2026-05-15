@@ -72,3 +72,11 @@ data class HistoryRecordResponse(
     override val status: PumpStatus,
     val record: DanaRsHistoryRecord,
 ) : DanaRsHistoryResponse
+
+/**
+ * Complete result of a classic history transfer after the terminal packet has been received.
+ */
+data class DanaRsHistoryResult(
+    val records: List<DanaRsHistoryRecord>,
+    val end: HistoryEndResponse,
+)

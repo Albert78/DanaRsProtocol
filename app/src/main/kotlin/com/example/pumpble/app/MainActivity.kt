@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.pumpble.commands.PumpCommand
 import com.example.pumpble.commands.PumpResponse
+import com.example.pumpble.commands.PumpStreamCommand
 import com.example.pumpble.dana.DanaBleProfiles
 import com.example.pumpble.dana.DanaPumpClient
 import com.example.pumpble.dana.DanaPumpClientFactory
@@ -334,11 +335,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
             CommandRow {
-                CommandButton("History bolus", Icons.Filled.Refresh, modifier = Modifier.weight(1f)) {
-                    runCommand("History bolus") { historyBolus(fromMillis = 0L) }
+                CommandButton("APS history", Icons.Filled.Refresh, modifier = Modifier.weight(1f)) {
+                    runStreamCommand("APS history") { apsHistoryEvents(fromMillis = 0L) }
                 }
-                CommandButton("History daily", Icons.Filled.Refresh, modifier = Modifier.weight(1f)) {
-                    runCommand("History daily") { historyDaily(fromMillis = 0L) }
+                CommandButton("History bolus", Icons.Filled.Refresh, modifier = Modifier.weight(1f)) {
+                    runStreamCommand("History bolus") { historyBolus(fromMillis = 0L) }
                 }
             }
         }
@@ -704,6 +705,24 @@ class MainActivity : ComponentActivity() {
                 activeCommand = label
                 val response = client.client.execute(commands.commandFactory(), timeout = 20.seconds)
                 appendLog("$label -> ${response.toLogLine()}")
+            } catch (error: Throwable) {
+                appendLog("$label failed: ${error.message}")
+            } finally {
+                activeCommand = null
+            }
+        }
+    }
+
+    private fun <C : PumpResponse, R> runStreamCommand(
+        label: String,
+        commandFactory: DanaRsCommands.() -> PumpStreamCommand<C, R>,
+    ) {
+        val client = danaClient ?: return appendLog("Not connected")
+        scope.launch {
+            try {
+                activeCommand = label
+                val result = client.client.executeStream(commands.commandFactory(), timeout = 60.seconds)
+                appendLog("$label -> $result")
             } catch (error: Throwable) {
                 appendLog("$label failed: ${error.message}")
             } finally {

@@ -2,6 +2,9 @@ package com.example.pumpble.dana
 
 import com.example.pumpble.dana.commands.DanaRsBolusSpeed
 import com.example.pumpble.dana.commands.DanaRsCommands
+import com.example.pumpble.dana.commands.aps.ApsHistoryEndChunk
+import com.example.pumpble.dana.commands.aps.ApsHistoryEventChunk
+import com.example.pumpble.dana.commands.aps.ApsHistoryEventKind
 import com.example.pumpble.dana.commands.general.DanaRsPumpErrorState
 import com.example.pumpble.dana.commands.history.DanaRsHistoryRecordKind
 import com.example.pumpble.dana.commands.history.HistoryEndResponse
@@ -68,14 +71,19 @@ class DanaCommandCodecTest {
     }
 
     @Test
-    fun rawCommandsKeepResponsePayloadAvailableForSpecificParsers() {
+    fun apsHistoryEventsDecodeRecordAndEndChunks() {
         val command = commands.apsHistoryEvents(fromMillis = 0L)
-        val responsePayload = byteArrayOf(0x01, 0x02, 0x03)
 
-        val response = command.decodePayload(ByteReader(responsePayload))
+        val record = command.decodePayload(
+            ByteReader(byteArrayOf(0x05, 26, 5, 15, 14, 30, 10, 0x00, 0x7d, 0x00, 0x00)),
+        ) as ApsHistoryEventChunk
+        val end = command.decodePayload(ByteReader(byteArrayOf(0xff.toByte())))
 
-        assertEquals(PumpStatus.OK, response.status)
-        assertArrayEquals(responsePayload, response.payload)
+        assertEquals(PumpStatus.OK, record.status)
+        assertEquals(ApsHistoryEventKind.BOLUS, record.event.kind)
+        assertEquals(1.25, record.event.insulinUnits ?: 0.0, 0.0001)
+        assertEquals(PumpStatus.OK, end.status)
+        assertEquals(true, end is ApsHistoryEndChunk)
     }
 
     @Test

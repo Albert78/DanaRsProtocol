@@ -54,4 +54,23 @@ interface PumpCommand<R : PumpResponse> {
     fun decodePayload(reader: ByteReader): R
 }
 
+/**
+ * A command whose response is delivered as several notifications.
+ *
+ * History transfers are the typical example: the pump sends zero or more record chunks followed by a
+ * terminal marker. The stream command keeps the protocol-specific aggregation state, while
+ * PumpCommon only handles request serialization and frame correlation.
+ */
+interface PumpStreamCommand<C : PumpResponse, R> {
+    val commandId: CommandId
+    val name: String
+    val kind: CommandKind
+
+    fun encodePayload(writer: ByteWriter)
+    fun decodeChunk(reader: ByteReader): C
+    fun onChunk(chunk: C)
+    fun isComplete(chunk: C): Boolean
+    fun result(): R
+}
+
 fun ByteReader.readStatus(): PumpStatus = PumpStatus.fromCode(readUInt8())

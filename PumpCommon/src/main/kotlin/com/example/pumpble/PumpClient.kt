@@ -2,6 +2,7 @@ package com.example.pumpble
 
 import com.example.pumpble.commands.PumpCommand
 import com.example.pumpble.commands.PumpResponse
+import com.example.pumpble.commands.PumpStreamCommand
 import com.example.pumpble.protocol.ByteReader
 import com.example.pumpble.protocol.ByteWriter
 import com.example.pumpble.protocol.FrameCodec
@@ -72,6 +73,47 @@ class PumpClient(
         }
     }
 
+    suspend fun <C : PumpResponse, R> executeStream(
+        command: PumpStreamCommand<C, R>,
+        timeout: Duration = defaultTimeout,
+    ): R = transactionMutex.withLock {
+        coroutineScope {
+            val sequence = consumeSequence()
+            val requestPayload = ByteWriter().also(command::encodePayload).toByteArray()
+            val requestFrame = ProtocolFrame(
+                sequence = sequence,
+                commandId = command.commandId,
+                flags = REQUEST_FLAGS,
+                payload = requestPayload,
+            )
+
+            // Stream commands receive several frames for one request. The command owns the
+            // chunk-level state and decides which chunk terminates the transfer.
+            val completion = async {
+                withTimeout(timeout) {
+                    transport.notifications
+                        .transform { bytes ->
+                            codec.decodeFrames(bytes).forEach { emit(it) }
+                        }
+                        .first { frame ->
+                            if (!frame.matches(sequence, command.commandId)) {
+                                return@first false
+                            }
+                            val reader = ByteReader(frame.payload)
+                            val chunk = command.decodeChunk(reader)
+                            reader.requireFullyConsumed("${command.name} chunk")
+                            command.onChunk(chunk)
+                            command.isComplete(chunk)
+                        }
+                }
+            }
+
+            transport.write(codec.encode(requestFrame))
+            completion.await()
+            command.result()
+        }
+    }
+
     private companion object {
         const val REQUEST_FLAGS = 0x00
         const val NO_SEQUENCE = 0
@@ -81,5 +123,9 @@ class PumpClient(
         val current = nextSequence
         nextSequence = if (current == 0xffff) 1 else current + 1
         return current
+    }
+
+    private fun ProtocolFrame.matches(sequence: Int, commandId: com.example.pumpble.protocol.CommandId): Boolean {
+        return (this.sequence == sequence || this.sequence == NO_SEQUENCE) && this.commandId == commandId
     }
 }

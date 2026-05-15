@@ -8,6 +8,7 @@ import com.example.pumpble.dana.commands.encodeDanaHistoryStart
 import com.example.pumpble.dana.commands.requireRemainingAtLeast
 import com.example.pumpble.dana.commands.readUInt16Be
 import com.example.pumpble.commands.PumpStatus
+import com.example.pumpble.commands.PumpStreamCommand
 import com.example.pumpble.protocol.ByteReader
 import com.example.pumpble.protocol.ProtocolException
 import com.example.pumpble.protocol.ByteWriter
@@ -19,17 +20,45 @@ abstract class DanaRsHistoryCommand(
     definition: DanaRsPacketDefinition,
     private val fromMillis: Long,
     private val zoneId: ZoneId = ZoneId.systemDefault(),
-) : DanaRsPacketCommand<DanaRsHistoryResponse>(definition) {
+) : DanaRsPacketCommand<DanaRsHistoryResponse>(definition),
+    PumpStreamCommand<DanaRsHistoryResponse, DanaRsHistoryResult> {
+    private val records = mutableListOf<DanaRsHistoryRecord>()
+    private var end: HistoryEndResponse? = null
+
     override fun encodePayload(writer: ByteWriter) {
         writer.writeBytes(encodeDanaHistoryStart(fromMillis, zoneId))
     }
 
     override fun decodePayload(reader: ByteReader): DanaRsHistoryResponse {
+        return decodeChunk(reader)
+    }
+
+    override fun decodeChunk(reader: ByteReader): DanaRsHistoryResponse {
         return when (reader.remaining) {
             1 -> decodeEnd(reader)
             3 -> decodeEndWithCount(reader)
             else -> decodeRecord(reader)
         }
+    }
+
+    override fun onChunk(chunk: DanaRsHistoryResponse) {
+        when (chunk) {
+            is HistoryRecordResponse -> records += chunk.record
+            is HistoryEndResponse -> end = chunk
+        }
+    }
+
+    override fun isComplete(chunk: DanaRsHistoryResponse): Boolean = chunk is HistoryEndResponse
+
+    override fun result(): DanaRsHistoryResult {
+        return DanaRsHistoryResult(
+            records = records.toList(),
+            end = end ?: HistoryEndResponse(
+                status = PumpStatus.UNKNOWN,
+                errorCode = PumpStatus.UNKNOWN.code,
+                totalCount = null,
+            ),
+        )
     }
 
     private fun decodeEnd(reader: ByteReader): HistoryEndResponse {
