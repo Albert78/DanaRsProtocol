@@ -3,6 +3,16 @@ package com.example.pumpble.dana.commands
 import com.example.pumpble.commands.PumpResponse
 import com.example.pumpble.commands.PumpStatus
 
+interface DanaRsResponse : PumpResponse
+
+/**
+ * Result returned by DanaRS write/control packets that acknowledge success with a one-byte code.
+ */
+data class DanaRsAckResponse(
+    override val status: PumpStatus,
+    val resultCode: Int,
+) : DanaRsResponse
+
 /**
  * Raw decoded DanaRS response.
  *
@@ -15,7 +25,7 @@ data class DanaRsRawResponse(
     val definition: DanaRsPacketDefinition,
     val resultCode: Int?,
     val payload: ByteArray,
-) : PumpResponse {
+) : DanaRsResponse {
     override fun equals(other: Any?): Boolean {
         return other is DanaRsRawResponse &&
             status == other.status &&
@@ -30,5 +40,16 @@ data class DanaRsRawResponse(
         result = 31 * result + (resultCode ?: 0)
         result = 31 * result + payload.contentHashCode()
         return result
+    }
+
+    companion object {
+        fun read(definition: DanaRsPacketDefinition, payload: ByteArray): DanaRsRawResponse {
+            return DanaRsRawResponse(
+                status = PumpStatus.OK,
+                definition = definition,
+                resultCode = null,
+                payload = payload,
+            )
+        }
     }
 }

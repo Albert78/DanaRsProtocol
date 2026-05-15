@@ -7,36 +7,45 @@ import com.example.pumpble.protocol.ByteWriter
 import com.example.pumpble.protocol.CommandId
 
 /**
- * Generic command wrapper for the real DanaRS packet definitions.
+ * Base class for one concrete DanaRS packet command.
  *
- * The packet identity lives in [DanaRsPacketDefinition] and the request payload is supplied
- * explicitly. This keeps command creation deterministic while still allowing richer, command-specific
- * response models to be added later.
+ * Each subclass owns the request layout and the response parser for one opcode. The shared base only
+ * maps packet metadata into the generic PumpCommon command contract.
  */
-class DanaRsCommand(
+abstract class DanaRsPacketCommand<R : DanaRsResponse>(
     val definition: DanaRsPacketDefinition,
-    private val requestPayload: ByteArray = ByteArray(0),
-) : PumpCommand<DanaRsRawResponse> {
+) : PumpCommand<R> {
     override val commandId: CommandId = CommandId(definition.opcode)
     override val name: String = definition.friendlyName
     override val kind = definition.kind
 
     override fun encodePayload(writer: ByteWriter) {
-        writer.writeBytes(requestPayload)
+        // no parameters
     }
+}
 
+/**
+ * Base class for commands whose response has not yet been promoted to a richer domain model.
+ */
+abstract class DanaRsRawPacketCommand(
+    definition: DanaRsPacketDefinition,
+) : DanaRsPacketCommand<DanaRsRawResponse>(definition) {
     override fun decodePayload(reader: ByteReader): DanaRsRawResponse {
-        val payload = reader.readBytes(reader.remaining)
-        val resultCode = if (definition.responseShape == DanaRsResponseShape.ACK_RESULT && payload.isNotEmpty()) {
-            payload[0].toInt() and 0xff
-        } else {
-            null
-        }
-        return DanaRsRawResponse(
-            status = resultCode?.let(PumpStatus::fromCode) ?: PumpStatus.OK,
-            definition = definition,
+        return DanaRsRawResponse.read(definition, reader.readBytes(reader.remaining))
+    }
+}
+
+/**
+ * Base class for commands that return the standard one-byte DanaRS result code.
+ */
+abstract class DanaRsAckPacketCommand(
+    definition: DanaRsPacketDefinition,
+) : DanaRsPacketCommand<DanaRsAckResponse>(definition) {
+    override fun decodePayload(reader: ByteReader): DanaRsAckResponse {
+        val resultCode = reader.readUInt8()
+        return DanaRsAckResponse(
+            status = PumpStatus.fromCode(resultCode),
             resultCode = resultCode,
-            payload = payload,
         )
     }
 }

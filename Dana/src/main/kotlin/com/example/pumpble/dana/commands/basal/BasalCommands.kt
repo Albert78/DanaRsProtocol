@@ -1,0 +1,79 @@
+package com.example.pumpble.dana.commands.basal
+
+import com.example.pumpble.dana.commands.DanaRsAckPacketCommand
+import com.example.pumpble.dana.commands.DanaRsPacketRegistry
+import com.example.pumpble.dana.commands.DanaRsPacketCommand
+import com.example.pumpble.dana.commands.discardRemaining
+import com.example.pumpble.dana.commands.le16
+import com.example.pumpble.dana.commands.requireRemainingAtLeast
+import com.example.pumpble.commands.PumpStatus
+import com.example.pumpble.protocol.ByteReader
+import com.example.pumpble.protocol.ByteWriter
+import kotlin.math.roundToInt
+
+class BasalGetBasalRateCommand :
+    DanaRsPacketCommand<BasalRateProfileResponse>(DanaRsPacketRegistry.BASAL_GET_BASAL_RATE) {
+    override fun decodePayload(reader: ByteReader): BasalRateProfileResponse {
+        reader.requireRemainingAtLeast(51, name)
+        val maxBasal = reader.readUInt16Le() / 100.0
+        val basalStep = reader.readUInt8() / 100.0
+        val rates = List(24) { reader.readUInt16Le() / 100.0 }
+        reader.discardRemaining()
+        return BasalRateProfileResponse(
+            status = PumpStatus.OK,
+            maxBasalUnitsPerHour = maxBasal,
+            basalStepUnits = basalStep,
+            hourlyRatesUnits = rates,
+            basalStepSupported = basalStep == 0.01,
+        )
+    }
+}
+
+class BasalGetProfileNumberCommand :
+    DanaRsPacketCommand<BasalProfileNumberResponse>(DanaRsPacketRegistry.BASAL_GET_PROFILE_NUMBER) {
+    override fun decodePayload(reader: ByteReader): BasalProfileNumberResponse {
+        reader.requireRemainingAtLeast(1, name)
+        val activeProfile = reader.readUInt8()
+        reader.discardRemaining()
+        return BasalProfileNumberResponse(
+            status = PumpStatus.OK,
+            activeProfile = activeProfile,
+        )
+    }
+}
+
+class BasalSetCancelTemporaryBasalCommand : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_CANCEL_TEMPORARY_BASAL)
+
+class BasalSetTemporaryBasalCommand(
+    private val ratioPercent: Int,
+    private val durationHours: Int,
+) : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_TEMPORARY_BASAL) {
+    override fun encodePayload(writer: ByteWriter) {
+        writer.writeUInt8(ratioPercent)
+        writer.writeUInt8(durationHours)
+    }
+}
+
+class BasalSetProfileNumberCommand(
+    private val profileNumber: Int,
+) : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_PROFILE_NUMBER) {
+    override fun encodePayload(writer: ByteWriter) {
+        writer.writeUInt8(profileNumber)
+    }
+}
+
+class BasalSetProfileBasalRateCommand(
+    private val profileNumber: Int,
+    private val hourlyRatesUnits: List<Double>,
+) : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_PROFILE_BASAL_RATE) {
+    init {
+        require(hourlyRatesUnits.size == 24) { "Dana basal profile requires 24 hourly rates" }
+    }
+
+    override fun encodePayload(writer: ByteWriter) {
+        writer.writeUInt8(profileNumber)
+        hourlyRatesUnits.forEach { rate ->
+            writer.writeBytes(le16((rate * 100.0).roundToInt()))
+        }
+    }
+}

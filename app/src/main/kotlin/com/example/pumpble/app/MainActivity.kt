@@ -55,11 +55,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.pumpble.commands.PumpCommand
+import com.example.pumpble.commands.PumpResponse
 import com.example.pumpble.dana.DanaBleProfiles
 import com.example.pumpble.dana.DanaPumpClient
 import com.example.pumpble.dana.DanaPumpClientFactory
+import com.example.pumpble.dana.commands.DanaRsAckResponse
 import com.example.pumpble.dana.commands.DanaRsBolusSpeed
-import com.example.pumpble.dana.commands.DanaRsCommand
 import com.example.pumpble.dana.commands.DanaRsCommands
 import com.example.pumpble.dana.commands.DanaRsRawResponse
 import com.example.pumpble.dana.protocol.DanaRsHandshake
@@ -687,10 +689,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun runCommand(
+    private fun <R : PumpResponse> runCommand(
         label: String,
         requiresArm: Boolean = false,
-        commandFactory: DanaRsCommands.() -> DanaRsCommand,
+        commandFactory: DanaRsCommands.() -> PumpCommand<R>,
     ) {
         if (requiresArm && !controlArmed) {
             appendLog("$label blocked: commands are not armed")
@@ -722,9 +724,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun DanaRsRawResponse.toLogLine(): String {
-        val result = resultCode?.let { " result=$it" }.orEmpty()
-        return "status=$status$result payload=${payload.toHex()}"
+    private fun PumpResponse.toLogLine(): String {
+        return when (this) {
+            is DanaRsAckResponse -> "status=$status result=$resultCode"
+            is DanaRsRawResponse -> {
+                val result = resultCode?.let { " result=$it" }.orEmpty()
+                "status=$status$result payload=${payload.toHex()}"
+            }
+            else -> toString()
+        }
     }
 
     private fun ByteArray.toHex(): String {
