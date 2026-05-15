@@ -208,6 +208,9 @@ abstract class DanaRsHistoryCommand(
 class HistoryAlarmCommand(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) :
     DanaRsHistoryCommand(DanaRsPacketRegistry.HISTORY_ALARM, fromMillis, zoneId)
 
+class HistoryAllHistoryCommand(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) :
+    DanaRsHistoryCommand(DanaRsPacketRegistry.HISTORY_ALL_HISTORY, fromMillis, zoneId)
+
 class HistoryBasalCommand(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) :
     DanaRsHistoryCommand(DanaRsPacketRegistry.HISTORY_BASAL, fromMillis, zoneId)
 
@@ -231,3 +234,6 @@ class HistoryRefillCommand(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefau
 
 class HistorySuspendCommand(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) :
     DanaRsHistoryCommand(DanaRsPacketRegistry.HISTORY_SUSPEND, fromMillis, zoneId)
+
+class HistoryTemporaryCommand(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) :
+    DanaRsHistoryCommand(DanaRsPacketRegistry.HISTORY_TEMPORARY, fromMillis, zoneId)

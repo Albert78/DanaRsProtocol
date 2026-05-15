@@ -46,6 +46,31 @@ class GeneralGetShippingInformationCommand :
     }
 }
 
+class GeneralGetShippingVersionCommand :
+    DanaRsPacketCommand<GeneralShippingVersionResponse>(DanaRsPacketRegistry.GENERAL_GET_SHIPPING_VERSION) {
+    override fun decodePayload(reader: ByteReader): GeneralShippingVersionResponse {
+        val bleModel = reader.readAscii(reader.remaining)
+        return GeneralShippingVersionResponse(
+            status = PumpStatus.OK,
+            bleModel = bleModel,
+        )
+    }
+}
+
+class GeneralGetUserTimeChangeFlagCommand :
+    DanaRsPacketCommand<GeneralUserTimeChangeFlagResponse>(DanaRsPacketRegistry.GENERAL_GET_USER_TIME_CHANGE_FLAG) {
+    override fun decodePayload(reader: ByteReader): GeneralUserTimeChangeFlagResponse {
+        reader.requireRemainingAtLeast(1, name)
+        val flag = reader.readUInt8()
+        reader.discardRemaining()
+        return GeneralUserTimeChangeFlagResponse(
+            status = PumpStatus.OK,
+            flag = flag,
+            changedByUser = flag != 0,
+        )
+    }
+}
+
 class GeneralInitialScreenInformationCommand :
     DanaRsPacketCommand<GeneralInitialScreenInformationResponse>(DanaRsPacketRegistry.GENERAL_INITIAL_SCREEN_INFORMATION) {
     override fun decodePayload(reader: ByteReader): GeneralInitialScreenInformationResponse {
@@ -89,5 +114,43 @@ class GeneralSetHistoryUploadModeCommand(
 ) : DanaRsAckPacketCommand(DanaRsPacketRegistry.GENERAL_SET_HISTORY_UPLOAD_MODE) {
     override fun encodePayload(writer: ByteWriter) {
         writer.writeUInt8(mode)
+    }
+}
+
+class GeneralSetUserTimeChangeFlagClearCommand :
+    DanaRsAckPacketCommand(DanaRsPacketRegistry.GENERAL_SET_USER_TIME_CHANGE_FLAG_CLEAR)
+
+class ReviewBolusAverageCommand :
+    DanaRsPacketCommand<ReviewBolusAverageResponse>(DanaRsPacketRegistry.REVIEW_BOLUS_AVG) {
+    override fun decodePayload(reader: ByteReader): ReviewBolusAverageResponse {
+        reader.requireRemainingAtLeast(10, name)
+        val averages = List(5) { reader.readUInt16Le() / 100.0 }
+        reader.discardRemaining()
+        val looksLikeEmptyPlaceholder = averages.all { it == EMPTY_PLACEHOLDER_UNITS }
+        return ReviewBolusAverageResponse(
+            status = if (looksLikeEmptyPlaceholder) PumpStatus.INVALID_PARAMETER else PumpStatus.OK,
+            threeDayAverageUnits = averages[0],
+            sevenDayAverageUnits = averages[1],
+            fourteenDayAverageUnits = averages[2],
+            twentyOneDayAverageUnits = averages[3],
+            twentyEightDayAverageUnits = averages[4],
+        )
+    }
+
+    private companion object {
+        const val EMPTY_PLACEHOLDER_UNITS = 2.57
+    }
+}
+
+class ReviewGetPumpDecRatioCommand :
+    DanaRsPacketCommand<ReviewPumpDecRatioResponse>(DanaRsPacketRegistry.REVIEW_GET_PUMP_DEC_RATIO) {
+    override fun decodePayload(reader: ByteReader): ReviewPumpDecRatioResponse {
+        reader.requireRemainingAtLeast(1, name)
+        val ratioPercent = reader.readUInt8() * 5
+        reader.discardRemaining()
+        return ReviewPumpDecRatioResponse(
+            status = PumpStatus.OK,
+            ratioPercent = ratioPercent,
+        )
     }
 }

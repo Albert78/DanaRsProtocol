@@ -8,6 +8,8 @@ import com.example.pumpble.dana.commands.basal.BasalGetProfileNumberCommand
 import com.example.pumpble.dana.commands.basal.BasalSetCancelTemporaryBasalCommand
 import com.example.pumpble.dana.commands.basal.BasalSetProfileBasalRateCommand
 import com.example.pumpble.dana.commands.basal.BasalSetProfileNumberCommand
+import com.example.pumpble.dana.commands.basal.BasalSetSuspendOffCommand
+import com.example.pumpble.dana.commands.basal.BasalSetSuspendOnCommand
 import com.example.pumpble.dana.commands.basal.BasalSetTemporaryBasalCommand
 import com.example.pumpble.dana.commands.bolus.BolusGet24CIRCFArrayCommand
 import com.example.pumpble.dana.commands.bolus.BolusGetBolusOptionCommand
@@ -15,16 +17,25 @@ import com.example.pumpble.dana.commands.bolus.BolusGetCalculationInformationCom
 import com.example.pumpble.dana.commands.bolus.BolusGetCIRCFArrayCommand
 import com.example.pumpble.dana.commands.bolus.BolusGetStepBolusInformationCommand
 import com.example.pumpble.dana.commands.bolus.BolusSet24CIRCFArrayCommand
+import com.example.pumpble.dana.commands.bolus.BolusSetBolusOptionCommand
 import com.example.pumpble.dana.commands.bolus.BolusSetExtendedBolusCancelCommand
 import com.example.pumpble.dana.commands.bolus.BolusSetExtendedBolusCommand
 import com.example.pumpble.dana.commands.bolus.BolusSetStepBolusStartCommand
 import com.example.pumpble.dana.commands.bolus.BolusSetStepBolusStopCommand
+import com.example.pumpble.dana.commands.bolus.MissedBolusWindow
 import com.example.pumpble.dana.commands.etc.EtcKeepConnectionCommand
+import com.example.pumpble.dana.commands.etc.EtcSetHistorySaveCommand
+import com.example.pumpble.dana.commands.general.GeneralGetShippingVersionCommand
 import com.example.pumpble.dana.commands.general.GeneralGetPumpCheckCommand
 import com.example.pumpble.dana.commands.general.GeneralGetShippingInformationCommand
+import com.example.pumpble.dana.commands.general.GeneralGetUserTimeChangeFlagCommand
 import com.example.pumpble.dana.commands.general.GeneralInitialScreenInformationCommand
 import com.example.pumpble.dana.commands.general.GeneralSetHistoryUploadModeCommand
+import com.example.pumpble.dana.commands.general.GeneralSetUserTimeChangeFlagClearCommand
+import com.example.pumpble.dana.commands.general.ReviewBolusAverageCommand
+import com.example.pumpble.dana.commands.general.ReviewGetPumpDecRatioCommand
 import com.example.pumpble.dana.commands.history.HistoryAlarmCommand
+import com.example.pumpble.dana.commands.history.HistoryAllHistoryCommand
 import com.example.pumpble.dana.commands.history.HistoryBasalCommand
 import com.example.pumpble.dana.commands.history.HistoryBloodGlucoseCommand
 import com.example.pumpble.dana.commands.history.HistoryBolusCommand
@@ -33,6 +44,7 @@ import com.example.pumpble.dana.commands.history.HistoryDailyCommand
 import com.example.pumpble.dana.commands.history.HistoryPrimeCommand
 import com.example.pumpble.dana.commands.history.HistoryRefillCommand
 import com.example.pumpble.dana.commands.history.HistorySuspendCommand
+import com.example.pumpble.dana.commands.history.HistoryTemporaryCommand
 import com.example.pumpble.dana.commands.options.OptionGetPumpTimeCommand
 import com.example.pumpble.dana.commands.options.OptionGetPumpUtcAndTimeZoneCommand
 import com.example.pumpble.dana.commands.options.OptionGetUserOptionCommand
@@ -57,6 +69,8 @@ class DanaRsCommands {
         BasalSetTemporaryBasalCommand(ratioPercent, durationHours)
 
     fun basalSetProfileNumber(profileNumber: Int) = BasalSetProfileNumberCommand(profileNumber)
+    fun basalSetSuspendOff() = BasalSetSuspendOffCommand()
+    fun basalSetSuspendOn() = BasalSetSuspendOnCommand()
     fun basalSetProfileBasalRate(profileNumber: Int, hourlyRatesUnits: List<Double>) =
         BasalSetProfileBasalRateCommand(profileNumber, hourlyRatesUnits)
 
@@ -89,15 +103,56 @@ class DanaRsCommands {
 
     fun bolusSetExtendedBolusCancel() = BolusSetExtendedBolusCancelCommand()
     fun bolusSet24CIRCFArray(ic: IntArray, cf: IntArray) = BolusSet24CIRCFArrayCommand(ic, cf)
+    fun bolusSetBolusOption(
+        extendedBolusEnabled: Boolean,
+        bolusCalculationOption: Int,
+        missedBolusConfig: Int,
+        missedBolusWindows: List<MissedBolusWindow>,
+    ) = BolusSetBolusOptionCommand(
+        extendedBolusEnabled = extendedBolusEnabled,
+        bolusCalculationOption = bolusCalculationOption,
+        missedBolusConfig = missedBolusConfig,
+        missedBolusWindows = missedBolusWindows,
+    )
 
     fun etcKeepConnection() = EtcKeepConnectionCommand()
+    fun etcSetHistorySave(
+        historyType: Int,
+        historyYear: Int,
+        historyMonth: Int,
+        historyDate: Int,
+        historyHour: Int,
+        historyMinute: Int,
+        historySecond: Int,
+        historyCode: Int,
+        historyValue: Int,
+    ) = EtcSetHistorySaveCommand(
+        historyType = historyType,
+        historyYear = historyYear,
+        historyMonth = historyMonth,
+        historyDate = historyDate,
+        historyHour = historyHour,
+        historyMinute = historyMinute,
+        historySecond = historySecond,
+        historyCode = historyCode,
+        historyValue = historyValue,
+    )
+
+    fun generalGetShippingVersion() = GeneralGetShippingVersionCommand()
     fun generalGetPumpCheck() = GeneralGetPumpCheckCommand()
     fun generalGetShippingInformation() = GeneralGetShippingInformationCommand()
+    fun generalGetUserTimeChangeFlag() = GeneralGetUserTimeChangeFlagCommand()
     fun generalInitialScreenInformation() = GeneralInitialScreenInformationCommand()
     fun generalSetHistoryUploadMode(mode: Int) = GeneralSetHistoryUploadModeCommand(mode)
+    fun generalSetUserTimeChangeFlagClear() = GeneralSetUserTimeChangeFlagClearCommand()
+    fun reviewBolusAverage() = ReviewBolusAverageCommand()
+    fun reviewGetPumpDecRatio() = ReviewGetPumpDecRatioCommand()
 
     fun historyAlarm(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) =
         HistoryAlarmCommand(fromMillis, zoneId)
+
+    fun historyAllHistory(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) =
+        HistoryAllHistoryCommand(fromMillis, zoneId)
 
     fun historyBasal(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) =
         HistoryBasalCommand(fromMillis, zoneId)
@@ -122,6 +177,9 @@ class DanaRsCommands {
 
     fun historySuspend(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) =
         HistorySuspendCommand(fromMillis, zoneId)
+
+    fun historyTemporary(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) =
+        HistoryTemporaryCommand(fromMillis, zoneId)
 
     fun optionGetPumpTime() = OptionGetPumpTimeCommand()
     fun optionGetPumpUtcAndTimeZone() = OptionGetPumpUtcAndTimeZoneCommand()

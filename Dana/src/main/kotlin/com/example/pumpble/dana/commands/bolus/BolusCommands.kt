@@ -179,3 +179,26 @@ class BolusSet24CIRCFArrayCommand(
         cf.forEach { writer.writeBytes(le16(it)) }
     }
 }
+
+class BolusSetBolusOptionCommand(
+    private val extendedBolusEnabled: Boolean,
+    private val bolusCalculationOption: Int,
+    private val missedBolusConfig: Int,
+    private val missedBolusWindows: List<MissedBolusWindow>,
+) : DanaRsAckPacketCommand(DanaRsPacketRegistry.BOLUS_SET_BOLUS_OPTION) {
+    init {
+        require(missedBolusWindows.size == 4) { "Dana bolus options require four missed-bolus windows" }
+    }
+
+    override fun encodePayload(writer: ByteWriter) {
+        writer.writeUInt8(if (extendedBolusEnabled) 1 else 0)
+        writer.writeUInt8(bolusCalculationOption)
+        writer.writeUInt8(missedBolusConfig)
+        missedBolusWindows.forEach { window ->
+            writer.writeUInt8(window.startHour)
+            writer.writeUInt8(window.startMinute)
+            writer.writeUInt8(window.endHour)
+            writer.writeUInt8(window.endMinute)
+        }
+    }
+}

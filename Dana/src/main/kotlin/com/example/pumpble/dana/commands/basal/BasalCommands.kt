@@ -62,6 +62,10 @@ class BasalSetProfileNumberCommand(
     }
 }
 
+class BasalSetSuspendOffCommand : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_SUSPEND_OFF)
+
+class BasalSetSuspendOnCommand : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_SUSPEND_ON)
+
 class BasalSetProfileBasalRateCommand(
     private val profileNumber: Int,
     private val hourlyRatesUnits: List<Double>,

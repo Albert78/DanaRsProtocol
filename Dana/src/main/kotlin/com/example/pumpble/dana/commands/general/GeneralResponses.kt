@@ -61,3 +61,31 @@ data class GeneralShippingInformationResponse(
     val shippingCountry: String,
     val shippingDate: LocalDate,
 ) : DanaRsResponse
+
+data class GeneralShippingVersionResponse(
+    override val status: PumpStatus,
+    val bleModel: String,
+) : DanaRsResponse
+
+data class GeneralUserTimeChangeFlagResponse(
+    override val status: PumpStatus,
+    val flag: Int,
+    val changedByUser: Boolean,
+) : DanaRsResponse
+
+/**
+ * Rolling bolus averages reported by the review command.
+ */
+data class ReviewBolusAverageResponse(
+    override val status: PumpStatus,
+    val threeDayAverageUnits: Double,
+    val sevenDayAverageUnits: Double,
+    val fourteenDayAverageUnits: Double,
+    val twentyOneDayAverageUnits: Double,
+    val twentyEightDayAverageUnits: Double,
+) : DanaRsResponse
+
+data class ReviewPumpDecRatioResponse(
+    override val status: PumpStatus,
+    val ratioPercent: Int,
+) : DanaRsResponse

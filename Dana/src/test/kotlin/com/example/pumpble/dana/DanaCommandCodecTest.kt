@@ -5,6 +5,7 @@ import com.example.pumpble.dana.commands.DanaRsCommands
 import com.example.pumpble.dana.commands.aps.ApsHistoryEndChunk
 import com.example.pumpble.dana.commands.aps.ApsHistoryEventChunk
 import com.example.pumpble.dana.commands.aps.ApsHistoryEventKind
+import com.example.pumpble.dana.commands.bolus.MissedBolusWindow
 import com.example.pumpble.dana.commands.general.DanaRsPumpErrorState
 import com.example.pumpble.dana.commands.history.DanaRsHistoryRecordKind
 import com.example.pumpble.dana.commands.history.HistoryEndResponse
@@ -68,6 +69,60 @@ class DanaCommandCodecTest {
 
         assertEquals(PumpStatus.OK, response.status)
         assertEquals(0x00, response.resultCode)
+    }
+
+    @Test
+    fun bolusSetBolusOptionUsesReferencePayloadLayout() {
+        val command = commands.bolusSetBolusOption(
+            extendedBolusEnabled = true,
+            bolusCalculationOption = 2,
+            missedBolusConfig = 3,
+            missedBolusWindows = listOf(
+                MissedBolusWindow(1, 2, 3, 4),
+                MissedBolusWindow(5, 6, 7, 8),
+                MissedBolusWindow(9, 10, 11, 12),
+                MissedBolusWindow(13, 14, 15, 16),
+            ),
+        )
+
+        val payload = ByteWriter().also(command::encodePayload).toByteArray()
+
+        assertArrayEquals(byteArrayOf(1, 2, 3, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16), payload)
+    }
+
+    @Test
+    fun etcSetHistorySaveUsesReferencePayloadLayout() {
+        val command = commands.etcSetHistorySave(
+            historyType = 2,
+            historyYear = 26,
+            historyMonth = 5,
+            historyDate = 15,
+            historyHour = 14,
+            historyMinute = 30,
+            historySecond = 10,
+            historyCode = 0x82,
+            historyValue = 125,
+        )
+
+        val payload = ByteWriter().also(command::encodePayload).toByteArray()
+
+        assertArrayEquals(byteArrayOf(2, 26, 5, 15, 14, 30, 10, 0x82.toByte(), 0x7d, 0x00), payload)
+    }
+
+    @Test
+    fun unusedReviewCommandsDecodeResponses() {
+        val shippingVersion = commands.generalGetShippingVersion().decodePayload(ByteReader("BLE-1".toByteArray()))
+        val timeFlag = commands.generalGetUserTimeChangeFlag().decodePayload(ByteReader(byteArrayOf(1)))
+        val bolusAverage = commands.reviewBolusAverage().decodePayload(
+            ByteReader(byteArrayOf(100, 0, 110, 0, 120, 0, 130.toByte(), 0, 140.toByte(), 0)),
+        )
+        val decRatio = commands.reviewGetPumpDecRatio().decodePayload(ByteReader(byteArrayOf(4)))
+
+        assertEquals("BLE-1", shippingVersion.bleModel)
+        assertEquals(true, timeFlag.changedByUser)
+        assertEquals(1.0, bolusAverage.threeDayAverageUnits, 0.0001)
+        assertEquals(1.4, bolusAverage.twentyEightDayAverageUnits, 0.0001)
+        assertEquals(20, decRatio.ratioPercent)
     }
 
     @Test
