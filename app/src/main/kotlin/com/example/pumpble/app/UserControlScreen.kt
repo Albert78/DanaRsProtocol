@@ -50,7 +50,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.pumpble.dana.commands.DanaGlucoseUnits
 import com.example.pumpble.dana.commands.DanaRsBolusSpeed
+import com.example.pumpble.dana.commands.bolus.BolusStepBolusInformationResponse
+import com.example.pumpble.dana.commands.general.GeneralInitialScreenInformationResponse
 import com.example.pumpble.dana.commands.options.DanaRsLanguage
+import com.example.pumpble.dana.commands.options.OptionPumpUtcAndTimeZoneResponse
+import com.example.pumpble.dana.commands.options.OptionUserOptionsResponse
 import java.util.Date
 
 @Composable
@@ -86,40 +90,149 @@ fun UserControlView(viewModel: UserViewModel) {
         ExtendedBolusDialog(viewModel)
     }
 
+    UserControlContent(
+        selectedDevice = viewModel.selectedDevice,
+        isScanning = viewModel.isScanning,
+        sessionReady = viewModel.sessionReady,
+        discoveredDevices = viewModel.discoveredDevices,
+        isSearchingLastDevice = viewModel.isSearchingLastDevice,
+        activeCommand = viewModel.activeCommand,
+        pumpStatus = viewModel.pumpStatus,
+        lastSyncTime = viewModel.lastSyncTime,
+        stepBolusInfo = viewModel.stepBolusInfo,
+        pumpTimeInfo = viewModel.pumpTimeInfo,
+        userOptions = viewModel.userOptions,
+        onStartDiscovery = { viewModel.startDiscovery() },
+        onStopDiscovery = { viewModel.stopDiscovery() },
+        onSelectDevice = {
+            viewModel.selectedDevice = it
+            viewModel.stopDiscovery()
+        },
+        onToggleConnection = { context -> viewModel.toggleConnection(context) },
+        onRefreshStatus = { viewModel.refreshAllStatus() },
+        onOpenTempBasal = { viewModel.openTempBasalDialog() },
+        onCancelTempBasal = { viewModel.cancelTempBasal() },
+        onOpenBolus = { viewModel.openBolusDialog() },
+        onStopBolus = { viewModel.stopBolus() },
+        onOpenExtendedBolus = { viewModel.openExtendedBolusDialog() },
+        onCancelExtendedBolus = { viewModel.cancelExtendedBolus() },
+        onOpenUserOptions = { viewModel.openUserOptionsDialog() },
+        onOpenBolusOptions = { viewModel.openBolusOptionsDialog() },
+        onOpenBasalProfiles = { viewModel.openBasalProfileDialog() },
+        onSyncTime = { viewModel.syncPumpTime() }
+    )
+}
+
+@Composable
+fun UserControlContent(
+    selectedDevice: DiscoveredPump?,
+    isScanning: Boolean,
+    sessionReady: Boolean,
+    discoveredDevices: List<DiscoveredPump>,
+    isSearchingLastDevice: Boolean,
+    activeCommand: String?,
+    pumpStatus: GeneralInitialScreenInformationResponse?,
+    lastSyncTime: Long?,
+    stepBolusInfo: BolusStepBolusInformationResponse?,
+    pumpTimeInfo: OptionPumpUtcAndTimeZoneResponse?,
+    userOptions: OptionUserOptionsResponse?,
+    onStartDiscovery: () -> Unit,
+    onStopDiscovery: () -> Unit,
+    onSelectDevice: (DiscoveredPump) -> Unit,
+    onToggleConnection: (android.content.Context) -> Unit,
+    onRefreshStatus: () -> Unit,
+    onOpenTempBasal: () -> Unit,
+    onCancelTempBasal: () -> Unit,
+    onOpenBolus: () -> Unit,
+    onStopBolus: () -> Unit,
+    onOpenExtendedBolus: () -> Unit,
+    onCancelExtendedBolus: () -> Unit,
+    onOpenUserOptions: () -> Unit,
+    onOpenBolusOptions: () -> Unit,
+    onOpenBasalProfiles: () -> Unit,
+    onSyncTime: () -> Unit
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            StatusDashboard(viewModel)
+            StatusDashboard(
+                selectedDevice = selectedDevice,
+                sessionReady = sessionReady,
+                isSearchingLastDevice = isSearchingLastDevice,
+                activeCommand = activeCommand,
+                pumpStatus = pumpStatus,
+                lastSyncTime = lastSyncTime,
+                onToggleConnection = onToggleConnection,
+                onRefreshStatus = onRefreshStatus
+            )
         }
 
-        if (viewModel.selectedDevice == null && !viewModel.sessionReady) {
+        if (selectedDevice == null && !sessionReady) {
             item {
-                DeviceSelectionCard(viewModel)
+                DeviceSelectionCard(
+                    isScanning = isScanning,
+                    discoveredDevices = discoveredDevices,
+                    onStartDiscovery = onStartDiscovery,
+                    onStopDiscovery = onStopDiscovery,
+                    onSelectDevice = onSelectDevice
+                )
             }
         }
 
-        if (viewModel.sessionReady) {
+        if (sessionReady) {
             item {
-                BasalCard(viewModel)
+                BasalCard(
+                    pumpStatus = pumpStatus,
+                    activeCommand = activeCommand,
+                    onOpenTempBasal = onOpenTempBasal,
+                    onCancelTempBasal = onCancelTempBasal
+                )
             }
             item {
-                BolusCard(viewModel)
+                BolusCard(
+                    stepBolusInfo = stepBolusInfo,
+                    pumpTimeInfo = pumpTimeInfo,
+                    activeCommand = activeCommand,
+                    onOpenBolus = onOpenBolus,
+                    onStopBolus = onStopBolus,
+                    onOpenExtendedBolus = onOpenExtendedBolus,
+                    onCancelExtendedBolus = onCancelExtendedBolus
+                )
             }
             item {
-                OptionsCard(viewModel)
+                OptionsCard(
+                    onOpenUserOptions = onOpenUserOptions,
+                    onOpenBolusOptions = onOpenBolusOptions,
+                    onOpenBasalProfiles = onOpenBasalProfiles
+                )
             }
             item {
-                PumpInfoCard(viewModel)
+                PumpInfoCard(
+                    pumpTimeInfo = pumpTimeInfo,
+                    userOptions = userOptions,
+                    sessionReady = sessionReady,
+                    activeCommand = activeCommand,
+                    onSyncTime = onSyncTime
+                )
             }
         }
     }
 }
 
 @Composable
-private fun StatusDashboard(viewModel: UserViewModel) {
+private fun StatusDashboard(
+    selectedDevice: DiscoveredPump?,
+    sessionReady: Boolean,
+    isSearchingLastDevice: Boolean,
+    activeCommand: String?,
+    pumpStatus: GeneralInitialScreenInformationResponse?,
+    lastSyncTime: Long?,
+    onToggleConnection: (android.content.Context) -> Unit,
+    onRefreshStatus: () -> Unit
+) {
     val context = LocalContext.current
 
     ElevatedCard(
@@ -133,37 +246,37 @@ private fun StatusDashboard(viewModel: UserViewModel) {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = viewModel.selectedDevice?.name ?: (PumpManager.getLastStoredName() ?: "No Device Selected"),
+                        text = selectedDevice?.name ?: (PumpManager.getLastStoredName() ?: "No Device Selected"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
 
-                    if (viewModel.selectedDevice == null && viewModel.isSearchingLastDevice) {
+                    if (selectedDevice == null && isSearchingLastDevice) {
                         Text("Searching for last pump...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                     }
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Connect / Disconnect Toggle
-                    if (viewModel.selectedDevice != null) {
+                    if (selectedDevice != null) {
                         Button(
-                            onClick = { viewModel.toggleConnection(context) },
-                            enabled = viewModel.activeCommand == null,
-                            colors = if (viewModel.sessionReady)
+                            onClick = { onToggleConnection(context) },
+                            enabled = activeCommand == null,
+                            colors = if (sessionReady)
                                 ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                                 else ButtonDefaults.buttonColors()
                         ) {
-                            if (viewModel.activeCommand == "Connecting" || viewModel.activeCommand == "Handshake") {
+                            if (activeCommand == "Connecting" || activeCommand == "Handshake") {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                             } else {
-                                Text(if (viewModel.sessionReady) "Disconnect" else "Connect")
+                                Text(if (sessionReady) "Disconnect" else "Connect")
                             }
                         }
                     }
                 }
             }
 
-            if (viewModel.sessionReady) {
+            if (sessionReady) {
                 Spacer(Modifier.height(16.dp))
                 HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 Spacer(Modifier.height(16.dp))
@@ -176,28 +289,28 @@ private fun StatusDashboard(viewModel: UserViewModel) {
                     StatusItem(
                         icon = Icons.Default.BatteryStd,
                         label = "Battery",
-                        value = viewModel.pumpStatus?.batteryRemainingPercent?.let { "$it%" } ?: "--"
+                        value = pumpStatus?.batteryRemainingPercent?.let { "$it%" } ?: "--"
                     )
                     StatusItem(
                         icon = Icons.Default.WaterDrop,
                         label = "Reservoir",
-                        value = viewModel.pumpStatus?.reservoirRemainingUnits?.let { "%.1f U".format(it) } ?: "--"
+                        value = pumpStatus?.reservoirRemainingUnits?.let { "%.1f U".format(it) } ?: "--"
                     )
                     StatusItem(
                         icon = Icons.Default.BluetoothConnected,
                         label = "Last Sync",
-                        value = viewModel.lastSyncTime?.let {
+                        value = lastSyncTime?.let {
                             java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(Date(it))
                         } ?: "--"
                     )
 
                     OutlinedButton(
-                        onClick = { viewModel.refreshAllStatus() },
-                        enabled = viewModel.activeCommand == null,
+                        onClick = { onRefreshStatus() },
+                        enabled = activeCommand == null,
                         contentPadding = PaddingValues(horizontal = 8.dp),
                         modifier = Modifier.height(48.dp)
                     ) {
-                        if (viewModel.activeCommand == "Syncing Status") {
+                        if (activeCommand == "Syncing Status") {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp
@@ -222,7 +335,13 @@ private fun StatusDashboard(viewModel: UserViewModel) {
 }
 
 @Composable
-private fun DeviceSelectionCard(viewModel: UserViewModel) {
+private fun DeviceSelectionCard(
+    isScanning: Boolean,
+    discoveredDevices: List<DiscoveredPump>,
+    onStartDiscovery: () -> Unit,
+    onStopDiscovery: () -> Unit,
+    onSelectDevice: (DiscoveredPump) -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -231,27 +350,24 @@ private fun DeviceSelectionCard(viewModel: UserViewModel) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Available Pumps", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                if (viewModel.isScanning) {
+                if (isScanning) {
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                 } else {
-                    TextButton(onClick = { viewModel.startDiscovery() }) {
+                    TextButton(onClick = onStartDiscovery) {
                         Text("Rescan")
                     }
                 }
             }
             Spacer(Modifier.height(8.dp))
 
-            if (viewModel.discoveredDevices.isEmpty() && !viewModel.isScanning) {
+            if (discoveredDevices.isEmpty() && !isScanning) {
                 Text("No pumps found. Make sure Bluetooth is on.", style = MaterialTheme.typography.bodySmall)
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                viewModel.discoveredDevices.forEach { pump ->
+                discoveredDevices.forEach { pump ->
                     Surface(
-                        onClick = {
-                            viewModel.selectedDevice = pump
-                            viewModel.stopDiscovery()
-                        },
+                        onClick = { onSelectDevice(pump) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.small,
                         color = MaterialTheme.colorScheme.surface
@@ -280,22 +396,27 @@ private fun StatusItem(icon: ImageVector, label: String, value: String) {
 }
 
 @Composable
-private fun BasalCard(viewModel: UserViewModel) {
+private fun BasalCard(
+    pumpStatus: GeneralInitialScreenInformationResponse?,
+    activeCommand: String?,
+    onOpenTempBasal: () -> Unit,
+    onCancelTempBasal: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Basal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
 
-            val currentBasal = viewModel.pumpStatus?.currentBasalUnitsPerHour ?: 0.0
+            val currentBasal = pumpStatus?.currentBasalUnitsPerHour ?: 0.0
             Text(
                 text = "%.2f U/h".format(currentBasal),
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary
             )
 
-            if (viewModel.pumpStatus?.tempBasalInProgress == true) {
+            if (pumpStatus?.tempBasalInProgress == true) {
                 Text(
-                    "Temp Basal: ${viewModel.pumpStatus?.tempBasalPercent}%",
+                    "Temp Basal: ${pumpStatus?.tempBasalPercent}%",
                     color = MaterialTheme.colorScheme.tertiary,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -304,16 +425,16 @@ private fun BasalCard(viewModel: UserViewModel) {
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = { viewModel.openTempBasalDialog() },
+                    onClick = onOpenTempBasal,
                     modifier = Modifier.weight(1f),
-                    enabled = viewModel.activeCommand == null
+                    enabled = activeCommand == null
                 ) {
                     Text("Temp Basal")
                 }
                 OutlinedButton(
-                    onClick = { viewModel.cancelTempBasal() },
+                    onClick = onCancelTempBasal,
                     modifier = Modifier.weight(1f),
-                    enabled = viewModel.activeCommand == null
+                    enabled = activeCommand == null
                 ) {
                     Text("Cancel")
                 }
@@ -323,15 +444,23 @@ private fun BasalCard(viewModel: UserViewModel) {
 }
 
 @Composable
-private fun BolusCard(viewModel: UserViewModel) {
+private fun BolusCard(
+    stepBolusInfo: BolusStepBolusInformationResponse?,
+    pumpTimeInfo: OptionPumpUtcAndTimeZoneResponse?,
+    activeCommand: String?,
+    onOpenBolus: () -> Unit,
+    onStopBolus: () -> Unit,
+    onOpenExtendedBolus: () -> Unit,
+    onCancelExtendedBolus: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Bolus", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
 
-            val lastAmount = viewModel.stepBolusInfo?.lastBolusAmountUnits ?: 0.0
-            val lastTimeUtc = viewModel.stepBolusInfo?.lastBolusTimeOfDayUTC
-            val zoneOffset = viewModel.pumpTimeInfo?.zoneOffsetHours ?: 0
+            val lastAmount = stepBolusInfo?.lastBolusAmountUnits ?: 0.0
+            val lastTimeUtc = stepBolusInfo?.lastBolusTimeOfDayUTC
+            val zoneOffset = pumpTimeInfo?.zoneOffsetHours ?: 0
 
             val lastTimeLocal = lastTimeUtc?.plusHours(zoneOffset.toLong())
 
@@ -343,17 +472,17 @@ private fun BolusCard(viewModel: UserViewModel) {
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
-                    onClick = { viewModel.openBolusDialog() },
+                    onClick = onOpenBolus,
                     modifier = Modifier.weight(1f),
-                    enabled = viewModel.activeCommand == null
+                    enabled = activeCommand == null
                 ) {
                     Text("Start Bolus")
                 }
                 OutlinedButton(
-                    onClick = { viewModel.stopBolus() },
+                    onClick = onStopBolus,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    enabled = viewModel.activeCommand == null
+                    enabled = activeCommand == null
                 ) {
                     Text("Stop Bolus")
                 }
@@ -361,17 +490,17 @@ private fun BolusCard(viewModel: UserViewModel) {
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = { viewModel.openExtendedBolusDialog() },
+                    onClick = onOpenExtendedBolus,
                     modifier = Modifier.weight(1f),
-                    enabled = viewModel.activeCommand == null
+                    enabled = activeCommand == null
                 ) {
                     Text("Extended")
                 }
                 OutlinedButton(
-                    onClick = { viewModel.cancelExtendedBolus() },
+                    onClick = onCancelExtendedBolus,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    enabled = viewModel.activeCommand == null
+                    enabled = activeCommand == null
                 ) {
                     Text("Stop Ext.")
                 }
@@ -381,27 +510,31 @@ private fun BolusCard(viewModel: UserViewModel) {
 }
 
 @Composable
-private fun OptionsCard(viewModel: UserViewModel) {
+private fun OptionsCard(
+    onOpenUserOptions: () -> Unit,
+    onOpenBolusOptions: () -> Unit,
+    onOpenBasalProfiles: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Settings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
 
-            SettingsRow(Icons.Default.Settings, "User Options") {
-                viewModel.openUserOptionsDialog()
-            }
-            SettingsRow(Icons.Default.Settings, "Bolus Options") {
-                viewModel.openBolusOptionsDialog()
-            }
-            SettingsRow(Icons.Default.Settings, "Basal Profiles") {
-                viewModel.openBasalProfileDialog()
-            }
+            SettingsRow(Icons.Default.Settings, "User Options", onOpenUserOptions)
+            SettingsRow(Icons.Default.Settings, "Bolus Options", onOpenBolusOptions)
+            SettingsRow(Icons.Default.Settings, "Basal Profiles", onOpenBasalProfiles)
         }
     }
 }
 
 @Composable
-private fun PumpInfoCard(viewModel: UserViewModel) {
+private fun PumpInfoCard(
+    pumpTimeInfo: OptionPumpUtcAndTimeZoneResponse?,
+    userOptions: OptionUserOptionsResponse?,
+    sessionReady: Boolean,
+    activeCommand: String?,
+    onSyncTime: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
@@ -415,24 +548,21 @@ private fun PumpInfoCard(viewModel: UserViewModel) {
             )
             Spacer(Modifier.height(8.dp))
 
-            val timeInfo = viewModel.pumpTimeInfo
-            val pumpTimeLocal = timeInfo?.let { it.pumpUtcTime.plusHours(it.zoneOffsetHours.toLong()) }
+            val pumpTimeLocal = pumpTimeInfo?.let { it.pumpUtcTime.plusHours(it.zoneOffsetHours.toLong()) }
             InfoRow("Pump Time", pumpTimeLocal?.toString()?.replace("T", " ")?.take(16) ?: "--")
-            InfoRow("Time Zone Offset", timeInfo?.let { "UTC%+d".format(it.zoneOffsetHours) } ?: "--")
+            InfoRow("Time Zone Offset", pumpTimeInfo?.let { "UTC%+d".format(it.zoneOffsetHours) } ?: "--")
 
-            // Note: HW Model is not in OptionUserOptionsResponse directly,
-            // but we can show the number of selectable languages as a proxy or omit it.
-            if (viewModel.userOptions != null) {
-                InfoRow("Languages", viewModel.userOptions?.selectableLanguages?.size?.toString() ?: "--")
+            if (userOptions != null) {
+                InfoRow("Languages", userOptions.selectableLanguages.size.toString())
             }
 
             Spacer(Modifier.height(12.dp))
             OutlinedButton(
-                onClick = { viewModel.syncPumpTime() },
-                enabled = viewModel.sessionReady && viewModel.activeCommand == null,
+                onClick = onSyncTime,
+                enabled = sessionReady && activeCommand == null,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (viewModel.activeCommand == "Syncing Time") {
+                if (activeCommand == "Syncing Time") {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 } else {
                     Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
