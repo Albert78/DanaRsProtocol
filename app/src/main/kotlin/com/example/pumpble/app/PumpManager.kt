@@ -30,14 +30,14 @@ import kotlin.time.Duration.Companion.seconds
 
 object PumpManager {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    
+
     val commands = DanaRsCommands()
 
     var connectionState by mutableStateOf("Disconnected")
     var sessionReady by mutableStateOf(false)
     var selectedDevice by mutableStateOf<DiscoveredPump?>(null)
     var danaClient by mutableStateOf<DanaPumpClient?>(null)
-    
+
     // Decoded Pump State
     var lastSyncTime by mutableStateOf<Long?>(null)
     var pumpStatus by mutableStateOf<GeneralInitialScreenInformationResponse?>(null)
@@ -47,8 +47,8 @@ object PumpManager {
     var basalRateInfo by mutableStateOf<BasalRateProfileResponse?>(null)
     var pumpTimeInfo by mutableStateOf<OptionPumpUtcAndTimeZoneResponse?>(null)
 
-    private var transport by mutableStateOf<AndroidBleTransport?>(null)
-    private var packetCodec by mutableStateOf<DanaRsPacketCodec?>(null)
+    private var _transport by mutableStateOf<AndroidBleTransport?>(null)
+    private var _packetCodec by mutableStateOf<DanaRsPacketCodec?>(null)
     private var connectionJob: Job? = null
 
     fun initialize() {
@@ -61,7 +61,7 @@ object PumpManager {
             disconnect()
             selectedDevice = pump
             connectionState = "Connecting to ${pump.name.ifBlank { pump.address }}"
-            
+
             val codec = DanaRsPacketCodec()
             val profile = DanaBleProfiles.danaI(
                 txCharacteristicUuid = UUID.fromString(txUuid.trim()),
@@ -72,10 +72,10 @@ object PumpManager {
                 device = pump.device,
                 config = profile.toBlePumpConfig(),
             )
-            
-            packetCodec = codec
-            transport = connectedTransport
-            
+
+            _packetCodec = codec
+            _transport = connectedTransport
+
             connectionJob = scope.launch {
                 connectedTransport.state.collect { state ->
                     if (state is AndroidBleTransport.TransportState.Disconnected) {
@@ -83,7 +83,7 @@ object PumpManager {
                     }
                 }
             }
-            
+
             danaClient = DanaPumpClientFactory.createDanaRsCompatible(
                 transport = connectedTransport,
                 codec = codec,
@@ -101,21 +101,21 @@ object PumpManager {
         connectionState = if (reason != null) "Disconnected: $reason" else "Disconnected"
         sessionReady = false
         danaClient = null
-        transport = null
-        packetCodec = null
+        _transport = null
+        _packetCodec = null
         LogManager.log("Transport state: $connectionState")
     }
 
     suspend fun disconnect() {
         try {
-            transport?.close()
+            _transport?.close()
         } catch (error: Exception) {
             LogManager.log("Disconnect error: ${error.message}")
         }
         connectionJob?.cancel()
         handleDisconnect(null)
     }
-    
+
     fun setSessionReady(ready: Boolean, info: String? = null) {
         sessionReady = ready
         if (ready) {
@@ -132,7 +132,7 @@ object PumpManager {
         val client = danaClient ?: error("Not connected")
         return client.client.executeStream(command, timeout = 60.seconds)
     }
-    
-    fun getPacketCodec() = packetCodec
-    fun getTransport() = transport
+
+    fun getPacketCodec() = _packetCodec
+    fun getTransport() = _transport
 }

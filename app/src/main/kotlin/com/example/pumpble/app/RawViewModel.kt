@@ -3,9 +3,9 @@ package com.example.pumpble.app
 import android.annotation.SuppressLint
 import android.app.Application
 import android.bluetooth.BluetoothManager
-import android.content.Context
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -25,7 +25,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import java.util.TimeZone
 import kotlin.time.Duration.Companion.seconds
 
 class RawViewModel(application: Application) : AndroidViewModel(application) {
@@ -34,7 +33,7 @@ class RawViewModel(application: Application) : AndroidViewModel(application) {
     val devices = mutableStateListOf<DiscoveredPump>()
     var isScanning by mutableStateOf(false)
     var selectedDevice by mutableStateOf<DiscoveredPump?>(null)
-    
+
     var permissionsGranted by mutableStateOf(false)
     var activeCommand by mutableStateOf<String?>(null)
     var controlArmed by mutableStateOf(false)
@@ -111,7 +110,7 @@ class RawViewModel(application: Application) : AndroidViewModel(application) {
         val transport = PumpManager.getTransport() ?: return LogManager.log("Not connected")
         val codec = PumpManager.getPacketCodec() ?: return LogManager.log("Codec missing")
         val deviceName = deviceNameText.trim()
-        
+
         if (deviceName.length != 10) {
             LogManager.log("Device name must contain exactly 10 characters")
             return
@@ -128,7 +127,7 @@ class RawViewModel(application: Application) : AndroidViewModel(application) {
                     ),
                 )
                 LogManager.log("Starting handshake for $deviceName...")
-                
+
                 val state = withTimeout(45.seconds) {
                     var handshakeState: DanaRsHandshakeState? = null
                     val flowJob = launch {
@@ -167,11 +166,11 @@ class RawViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     handshakeState ?: error("Handshake did not complete")
                 }
-                
+
                 val modelInfo = if (state.hardwareModel != null) " (Model ${state.hardwareModel}, Prot. v${state.protocol})" else ""
                 PumpManager.setSessionReady(true, modelInfo)
                 LogManager.log("Handshake successful: ${state.encryptionType}$modelInfo")
-                
+
                 state.ble5PairingKeyFromPump?.let {
                     if (ble5PairingKey != it) {
                         ble5PairingKey = it

@@ -2,6 +2,7 @@ package com.example.pumpble.app
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material.icons.filled.BluetoothConnected
@@ -18,7 +21,9 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,21 +32,43 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import java.util.Date
 
 @Composable
 fun UserControlView(viewModel: UserViewModel) {
+    if (viewModel.showBolusDialog) {
+        BolusDialog(viewModel)
+    }
+    
+    if (viewModel.showUserOptionsDialog) {
+        UserOptionsDialog(viewModel)
+    }
+
+    if (viewModel.showBolusOptionsDialog) {
+        BolusOptionsDialog(viewModel)
+    }
+
+    if (viewModel.showBasalProfileDialog) {
+        BasalProfileDialog(viewModel)
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
@@ -113,7 +140,7 @@ private fun StatusDashboard(viewModel: UserViewModel) {
                 Button(
                     onClick = { viewModel.refreshAllStatus() },
                     enabled = viewModel.sessionReady && viewModel.activeCommand == null,
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp)
                 ) {
                     if (viewModel.activeCommand == "Syncing Status") {
                         CircularProgressIndicator(
@@ -192,7 +219,10 @@ private fun BasalCard(viewModel: UserViewModel) {
                 OutlinedButton(onClick = { /* TODO */ }, modifier = Modifier.weight(1f)) {
                     Text("Temp Basal")
                 }
-                OutlinedButton(onClick = { /* TODO */ }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { viewModel.stopBolus() }, // Reusing logic for stopping delivery
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text("Cancel")
                 }
             }
@@ -216,7 +246,11 @@ private fun BolusCard(viewModel: UserViewModel) {
             )
             
             Spacer(Modifier.height(12.dp))
-            Button(onClick = { /* TODO */ }, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = { viewModel.openBolusDialog() },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = viewModel.activeCommand == null
+            ) {
                 Text("Start Bolus")
             }
             Spacer(Modifier.height(8.dp))
@@ -224,8 +258,12 @@ private fun BolusCard(viewModel: UserViewModel) {
                 OutlinedButton(onClick = { /* TODO */ }, modifier = Modifier.weight(1f)) {
                     Text("Extended")
                 }
-                OutlinedButton(onClick = { /* TODO */ }, modifier = Modifier.weight(1f), 
-                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                OutlinedButton(
+                    onClick = { viewModel.stopBolus() },
+                    modifier = Modifier.weight(1f), 
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    enabled = viewModel.activeCommand == null
+                ) {
                     Text("Stop Bolus")
                 }
             }
@@ -240,16 +278,22 @@ private fun OptionsCard(viewModel: UserViewModel) {
             Text("Settings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
             
-            SettingsRow(Icons.Default.Settings, "User Options") { /* TODO */ }
-            SettingsRow(Icons.Default.Settings, "Bolus Options") { /* TODO */ }
-            SettingsRow(Icons.Default.Settings, "Basal Profiles") { /* TODO */ }
+            SettingsRow(Icons.Default.Settings, "User Options") { 
+                viewModel.openUserOptionsDialog() 
+            }
+            SettingsRow(Icons.Default.Settings, "Bolus Options") { 
+                viewModel.openBolusOptionsDialog() 
+            }
+            SettingsRow(Icons.Default.Settings, "Basal Profiles") { 
+                viewModel.openBasalProfileDialog() 
+            }
         }
     }
 }
 
 @Composable
 private fun SettingsRow(icon: ImageVector, title: String, onClick: () -> Unit) {
-    androidx.compose.material3.Surface(
+    Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         color = Color.Transparent
@@ -265,4 +309,254 @@ private fun SettingsRow(icon: ImageVector, title: String, onClick: () -> Unit) {
             Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.outline)
         }
     }
+}
+
+@Composable
+private fun BolusDialog(viewModel: UserViewModel) {
+    AlertDialog(
+        onDismissRequest = { if (!viewModel.isProcessingBolus) viewModel.showBolusDialog = false },
+        title = { Text("Deliver Bolus") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (viewModel.activeCommand == "Fetching Limits") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text("Fetching pump limits...")
+                    }
+                }
+
+                val maxBolus = viewModel.stepBolusInfo?.maxBolusUnits ?: 0.0
+                val step = viewModel.stepBolusInfo?.bolusStepUnits ?: 0.1
+                
+                Text("Max Bolus: %.2f U".format(maxBolus), style = MaterialTheme.typography.labelMedium)
+                
+                OutlinedTextField(
+                    value = viewModel.bolusAmountInput,
+                    onValueChange = { viewModel.bolusAmountInput = it },
+                    label = { Text("Amount (Units)") },
+                    suffix = { Text("U") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !viewModel.isProcessingBolus
+                )
+                
+                Text(
+                    "Step size: %.2f U".format(step),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { viewModel.startStepBolus() },
+                enabled = !viewModel.isProcessingBolus && viewModel.bolusAmountInput.toDoubleOrNull() != null
+            ) {
+                if (viewModel.isProcessingBolus) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                } else {
+                    Text("Deliver")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { viewModel.showBolusDialog = false },
+                enabled = !viewModel.isProcessingBolus
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun UserOptionsDialog(viewModel: UserViewModel) {
+    val options = viewModel.editingUserOptions ?: return
+
+    AlertDialog(
+        onDismissRequest = { if (!viewModel.isSavingUserOptions) viewModel.showUserOptionsDialog = false },
+        title = { Text("User Options") },
+        text = {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("24h Time Display", style = MaterialTheme.typography.bodyLarge)
+                            Text("Toggle between 12h and 24h", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(
+                            checked = options.timeDisplayType24,
+                            onCheckedChange = { viewModel.editingUserOptions = options.copy(timeDisplayType24 = it) },
+                            enabled = !viewModel.isSavingUserOptions
+                        )
+                    }
+                }
+                
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Button Scroll", style = MaterialTheme.typography.bodyLarge)
+                            Text("Enable circular scrolling", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(
+                            checked = options.buttonScrollOnOff,
+                            onCheckedChange = { viewModel.editingUserOptions = options.copy(buttonScrollOnOff = it) },
+                            enabled = !viewModel.isSavingUserOptions
+                        )
+                    }
+                }
+                
+                item {
+                    Column {
+                        Text("Beep & Alarm Level: ${options.beepAndAlarm}", style = MaterialTheme.typography.bodyLarge)
+                        Slider(
+                            value = options.beepAndAlarm.toFloat(),
+                            onValueChange = { viewModel.editingUserOptions = options.copy(beepAndAlarm = it.toInt()) },
+                            valueRange = 1f..5f,
+                            steps = 3,
+                            enabled = !viewModel.isSavingUserOptions
+                        )
+                    }
+                }
+                
+                item {
+                    OutlinedTextField(
+                        value = options.lcdOnTimeSec.toString(),
+                        onValueChange = { 
+                            val value = it.toIntOrNull() ?: options.lcdOnTimeSec
+                            viewModel.editingUserOptions = options.copy(lcdOnTimeSec = value) 
+                        },
+                        label = { Text("LCD On Time (sec)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !viewModel.isSavingUserOptions
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { viewModel.saveUserOptions() },
+                enabled = !viewModel.isSavingUserOptions
+            ) {
+                if (viewModel.isSavingUserOptions) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                } else {
+                    Text("Save")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { viewModel.showUserOptionsDialog = false },
+                enabled = !viewModel.isSavingUserOptions
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun BasalProfileDialog(viewModel: UserViewModel) {
+    val rates = viewModel.editingBasalRates ?: return
+
+    AlertDialog(
+        onDismissRequest = { if (!viewModel.isSavingBasalProfile) viewModel.showBasalProfileDialog = false },
+        title = { Text("Edit Basal Profile") },
+        text = {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.height(400.dp)) {
+                items(24) { hour ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("%02d:00".format(hour), modifier = Modifier.width(60.dp))
+                        OutlinedTextField(
+                            value = rates[hour].toString(),
+                            onValueChange = { 
+                                val newRates = rates.toMutableList()
+                                newRates[hour] = it.toDoubleOrNull() ?: rates[hour]
+                                viewModel.editingBasalRates = newRates
+                            },
+                            label = { Text("U/h") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !viewModel.isSavingBasalProfile
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { viewModel.saveBasalProfile() },
+                enabled = !viewModel.isSavingBasalProfile
+            ) {
+                if (viewModel.isSavingBasalProfile) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                } else {
+                    Text("Save Profile")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { viewModel.showBasalProfileDialog = false },
+                enabled = !viewModel.isSavingBasalProfile
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun BolusOptionsDialog(viewModel: UserViewModel) {
+    val options = viewModel.editingBolusOptions ?: return
+
+    AlertDialog(
+        onDismissRequest = { if (!viewModel.isSavingBolusOptions) viewModel.showBolusOptionsDialog = false },
+        title = { Text("Bolus Options") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Extended Bolus", style = MaterialTheme.typography.bodyLarge)
+                        Text("Enable extended bolus feature", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(
+                        checked = options.extendedBolusEnabled,
+                        onCheckedChange = { viewModel.editingBolusOptions = options.copy(extendedBolusEnabled = it) },
+                        enabled = !viewModel.isSavingBolusOptions
+                    )
+                }
+                
+                Text(
+                    "Note: More bolus calculation settings will be available in a future update.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { viewModel.saveBolusOptions() },
+                enabled = !viewModel.isSavingBolusOptions
+            ) {
+                if (viewModel.isSavingBolusOptions) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                } else {
+                    Text("Save")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { viewModel.showBolusOptionsDialog = false },
+                enabled = !viewModel.isSavingBolusOptions
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
 }
