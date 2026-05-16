@@ -41,17 +41,53 @@ enum class ApsHistoryEventKind(val wireValue: Int) {
  * them.
  */
 data class ApsHistoryEvent(
+    /**
+     * Category of the event.
+     */
     val kind: ApsHistoryEventKind,
+    /**
+     * Raw record code from the pump.
+     */
     val recordCode: Int,
+    /**
+     * Event time in milliseconds since Epoch.
+     */
     val timestampMillis: Long,
+    /**
+     * ID of the pump (typically serial number based).
+     */
     val pumpId: Long,
+    /**
+     * Raw 16-bit parameter 1.
+     */
     val param1: Int,
+    /**
+     * Raw 16-bit parameter 2.
+     */
     val param2: Int,
+    /**
+     * Decoded insulin amount in Units (U), if applicable.
+     */
     val insulinUnits: Double?,
+    /**
+     * Decoded duration in minutes, if applicable.
+     */
     val durationMinutes: Int?,
+    /**
+     * Decoded ratio in percent, if applicable.
+     */
     val ratioPercent: Int?,
+    /**
+     * Decoded carbohydrate amount in grams (g), if applicable.
+     */
     val carbohydrateGrams: Int?,
+    /**
+     * Decoded delivery rate in Units per Hour (U/h), if applicable.
+     */
     val currentRateUnitsPerHour: Double?,
+    /**
+     * Previous timestamp in milliseconds (for time change events).
+     */
     val previousTimestampMillis: Long?,
 )
 

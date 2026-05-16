@@ -110,6 +110,9 @@ class GeneralInitialScreenInformationCommand :
 }
 
 class GeneralSetHistoryUploadModeCommand(
+    /**
+     * Mode for history upload (firmware specific).
+     */
     private val mode: Int,
 ) : DanaRsAckPacketCommand(DanaRsPacketRegistry.GENERAL_SET_HISTORY_UPLOAD_MODE) {
     override fun encodePayload(writer: ByteWriter) {

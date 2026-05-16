@@ -15,19 +15,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BatteryStd
-import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,10 +43,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.pumpble.dana.commands.DanaGlucoseUnits
 import com.example.pumpble.dana.commands.DanaRsBolusSpeed
@@ -59,7 +53,6 @@ import com.example.pumpble.dana.commands.general.GeneralInitialScreenInformation
 import com.example.pumpble.dana.commands.options.DanaRsLanguage
 import com.example.pumpble.dana.commands.options.OptionPumpUtcAndTimeZoneResponse
 import com.example.pumpble.dana.commands.options.OptionUserOptionsResponse
-import java.util.Date
 
 @Composable
 fun UserControlView(viewModel: UserViewModel) {
@@ -103,10 +96,8 @@ fun UserControlView(viewModel: UserViewModel) {
         isScanning = viewModel.isScanning,
         sessionReady = viewModel.sessionReady,
         discoveredDevices = viewModel.discoveredDevices,
-        isSearchingLastDevice = viewModel.isSearchingLastDevice,
         activeCommand = viewModel.activeCommand,
         pumpStatus = viewModel.pumpStatus,
-        lastSyncTime = viewModel.lastSyncTime,
         stepBolusInfo = viewModel.stepBolusInfo,
         pumpTimeInfo = viewModel.pumpTimeInfo,
         userOptions = viewModel.userOptions,
@@ -116,8 +107,6 @@ fun UserControlView(viewModel: UserViewModel) {
             viewModel.selectedDevice = it
             viewModel.stopDiscovery()
         },
-        onToggleConnection = { context -> viewModel.toggleConnection(context) },
-        onRefreshStatus = { viewModel.refreshAllStatus() },
         onOpenTempBasal = { viewModel.openTempBasalDialog() },
         onCancelTempBasal = { viewModel.cancelTempBasal() },
         onOpenBolus = { viewModel.openBolusDialog() },
@@ -138,18 +127,14 @@ fun UserControlContent(
     isScanning: Boolean,
     sessionReady: Boolean,
     discoveredDevices: List<DiscoveredPump>,
-    isSearchingLastDevice: Boolean,
     activeCommand: String?,
     pumpStatus: GeneralInitialScreenInformationResponse?,
-    lastSyncTime: Long?,
     stepBolusInfo: BolusStepBolusInformationResponse?,
     pumpTimeInfo: OptionPumpUtcAndTimeZoneResponse?,
     userOptions: OptionUserOptionsResponse?,
     onStartDiscovery: () -> Unit,
     onStopDiscovery: () -> Unit,
     onSelectDevice: (DiscoveredPump) -> Unit,
-    onToggleConnection: (android.content.Context) -> Unit,
-    onRefreshStatus: () -> Unit,
     onOpenTempBasal: () -> Unit,
     onCancelTempBasal: () -> Unit,
     onOpenBolus: () -> Unit,
@@ -167,19 +152,6 @@ fun UserControlContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            StatusDashboard(
-                selectedDevice = selectedDevice,
-                sessionReady = sessionReady,
-                isSearchingLastDevice = isSearchingLastDevice,
-                activeCommand = activeCommand,
-                pumpStatus = pumpStatus,
-                lastSyncTime = lastSyncTime,
-                onToggleConnection = onToggleConnection,
-                onRefreshStatus = onRefreshStatus
-            )
-        }
-
         if (selectedDevice == null && !sessionReady) {
             item {
                 DeviceSelectionCard(
@@ -227,118 +199,6 @@ fun UserControlContent(
                     sessionReady = sessionReady,
                     activeCommand = activeCommand,
                     onSyncTime = onSyncTime
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusDashboard(
-    selectedDevice: DiscoveredPump?,
-    sessionReady: Boolean,
-    isSearchingLastDevice: Boolean,
-    activeCommand: String?,
-    pumpStatus: GeneralInitialScreenInformationResponse?,
-    lastSyncTime: Long?,
-    onToggleConnection: (android.content.Context) -> Unit,
-    onRefreshStatus: () -> Unit
-) {
-    val context = LocalContext.current
-
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = selectedDevice?.name ?: (PumpManager.getLastStoredName() ?: "No Device Selected"),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    if (selectedDevice == null && isSearchingLastDevice) {
-                        Text("Searching for last pump...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                    }
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Connect / Disconnect Toggle
-                    if (selectedDevice != null) {
-                        Button(
-                            onClick = { onToggleConnection(context) },
-                            enabled = activeCommand == null,
-                            colors = if (sessionReady)
-                                ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                                else ButtonDefaults.buttonColors()
-                        ) {
-                            if (activeCommand == "Connecting" || activeCommand == "Handshake") {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
-                            } else {
-                                Text(if (sessionReady) "Disconnect" else "Connect")
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (sessionReady) {
-                Spacer(Modifier.height(16.dp))
-                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    StatusItem(
-                        icon = Icons.Default.BatteryStd,
-                        label = "Battery",
-                        value = pumpStatus?.batteryRemainingPercent?.let { "$it%" } ?: "--"
-                    )
-                    StatusItem(
-                        icon = Icons.Default.WaterDrop,
-                        label = "Reservoir",
-                        value = pumpStatus?.reservoirRemainingUnits?.let { "%.1f U".format(it) } ?: "--"
-                    )
-                    StatusItem(
-                        icon = Icons.Default.BluetoothConnected,
-                        label = "Last Sync",
-                        value = lastSyncTime?.let {
-                            java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(Date(it))
-                        } ?: "--"
-                    )
-
-                    OutlinedButton(
-                        onClick = { onRefreshStatus() },
-                        enabled = activeCommand == null,
-                        contentPadding = PaddingValues(horizontal = 8.dp),
-                        modifier = Modifier.height(48.dp)
-                    ) {
-                        if (activeCommand == "Syncing Status") {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                }
-            } else {
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = "Bitte verbinden Sie sich zuerst mit der Pumpe, um den Status zu sehen.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -394,15 +254,6 @@ private fun DeviceSelectionCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun StatusItem(icon: ImageVector, label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Text(text = label, style = MaterialTheme.typography.labelSmall)
-        Text(text = value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -909,8 +760,8 @@ private fun BasalProfilesDialog(viewModel: UserViewModel) {
             Column {
                 if (viewModel.isLoadingBasalProfile) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(12.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text("Loading profile data...", style = MaterialTheme.typography.labelSmall)
                     }
                 } else {

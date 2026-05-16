@@ -50,18 +50,57 @@ enum class DanaRsHistoryRecordKind(val wireValue: Int) {
  * for the current [kind] are left null instead of inventing placeholder values.
  */
 data class DanaRsHistoryRecord(
+    /**
+     * Raw record code from the pump.
+     */
     val recordCode: Int,
+    /**
+     * Type of the history record.
+     */
     val kind: DanaRsHistoryRecordKind,
+    /**
+     * Local timestamp of the record.
+     */
     val timestamp: LocalDateTime,
+    /**
+     * Readable message type.
+     */
     val messageType: String?,
+    /**
+     * Primary numeric value (e.g., Units for Bolus, mg/dL for Glucose).
+     */
     val value: Double?,
+    /**
+     * Duration in minutes (for extended delivery).
+     */
     val durationMinutes: Int?,
+    /**
+     * Type of bolus (S: Step, E: Extended, DS: Dual-Step, DE: Dual-Extended).
+     */
     val bolusType: String?,
+    /**
+     * Alarm description if kind is ALARM.
+     */
     val alarm: String?,
+    /**
+     * String value for state-based records (e.g., Suspend On/Off).
+     */
     val stringValue: String?,
+    /**
+     * Daily basal total (for DAILY records).
+     */
     val dailyBasalUnits: Double?,
+    /**
+     * Daily bolus total (for DAILY records).
+     */
     val dailyBolusUnits: Double?,
+    /**
+     * Raw 8-bit history sub-code.
+     */
     val rawHistoryCode: Int,
+    /**
+     * Raw 16-bit primary value.
+     */
     val rawValue: Int,
 )
 
