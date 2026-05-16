@@ -663,14 +663,14 @@ private fun UserOptionsDialog(viewModel: UserViewModel) {
 
                 item {
                     OutlinedTextField(
-                        value = (options.refillAmount / 100.0).toString(),
+                        value = options.refillAmount.toString(),
                         onValueChange = {
-                            val value = ((it.toDoubleOrNull() ?: (options.refillAmount / 100.0)) * 100.0).toInt()
+                            val value = it.toIntOrNull() ?: options.refillAmount
                             viewModel.editingUserOptions = options.copy(refillAmount = value)
                         },
                         label = { Text("Refill Amount") },
                         suffix = { Text("U") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !viewModel.isSavingUserOptions
                     )
@@ -826,7 +826,7 @@ private fun BolusOptionsDialog(viewModel: UserViewModel) {
                 item {
                     OutlinedTextField(
                         value = rate.maxBolusUnits.toString(),
-                        onValueChange = { 
+                        onValueChange = {
                             val value = it.toDoubleOrNull() ?: rate.maxBolusUnits
                             viewModel.editingBolusRate = rate.copy(maxBolusUnits = value)
                         },
@@ -848,7 +848,7 @@ private fun BolusOptionsDialog(viewModel: UserViewModel) {
                                 OutlinedButton(
                                     onClick = { viewModel.editingBolusRate = rate.copy(bolusSpeed = speed) },
                                     enabled = !viewModel.isSavingBolusOptions,
-                                    colors = if (selected) 
+                                    colors = if (selected)
                                         ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                                         else ButtonDefaults.outlinedButtonColors(),
                                     modifier = Modifier.weight(1f),
@@ -979,7 +979,7 @@ private fun TimeInputField(
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(
             value = "%02d".format(hour),
-            onValueChange = { 
+            onValueChange = {
                 val h = it.toIntOrNull()?.coerceIn(0, 23) ?: hour
                 onValueChange(h, minute)
             },
@@ -992,7 +992,7 @@ private fun TimeInputField(
         Text(":", modifier = Modifier.padding(horizontal = 4.dp))
         OutlinedTextField(
             value = "%02d".format(minute),
-            onValueChange = { 
+            onValueChange = {
                 val m = it.toIntOrNull()?.coerceIn(0, 59) ?: minute
                 onValueChange(hour, m)
             },
