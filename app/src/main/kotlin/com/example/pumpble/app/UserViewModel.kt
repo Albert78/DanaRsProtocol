@@ -59,6 +59,18 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     var editingBasalRates by mutableStateOf<List<Double>?>(null)
     var isSavingBasalProfile by mutableStateOf(false)
 
+    // Temp Basal Dialog State
+    var showTempBasalDialog by mutableStateOf(false)
+    var tempBasalPercentInput by mutableStateOf("100")
+    var tempBasalDurationInput by mutableStateOf("1")
+    var isProcessingTempBasal by mutableStateOf(false)
+
+    // Extended Bolus Dialog State
+    var showExtendedBolusDialog by mutableStateOf(false)
+    var extendedBolusAmountInput by mutableStateOf("0.00")
+    var extendedBolusDurationInput by mutableStateOf("1") // In half hours
+    var isProcessingExtendedBolus by mutableStateOf(false)
+
     @android.annotation.SuppressLint("MissingPermission")
     fun startDiscovery() {
         val scanner = bluetoothManager.adapter?.bluetoothLeScanner ?: return
@@ -422,6 +434,101 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                 refreshAllStatus()
             } catch (error: Throwable) {
                 LogManager.log("Stop Bolus failed: ${error.message}")
+            } finally {
+                activeCommand = null
+            }
+        }
+    }
+
+    fun openTempBasalDialog() {
+        if (!sessionReady) return
+        tempBasalPercentInput = "100"
+        tempBasalDurationInput = "1"
+        showTempBasalDialog = true
+    }
+
+    fun startTempBasal() {
+        val percent = tempBasalPercentInput.toIntOrNull() ?: return
+        val duration = tempBasalDurationInput.toIntOrNull() ?: return
+        
+        viewModelScope.launch {
+            try {
+                isProcessingTempBasal = true
+                activeCommand = "Setting Temp Basal"
+                LogManager.log("Setting Temp Basal: $percent% for ${duration}h...")
+                val response = PumpManager.execute(
+                    PumpManager.commands.basalSetTemporaryBasal(percent, duration)
+                )
+                LogManager.log("Temp Basal result: ${response.status}")
+                showTempBasalDialog = false
+                refreshAllStatus()
+            } catch (error: Throwable) {
+                LogManager.log("Temp Basal failed: ${error.message}")
+            } finally {
+                isProcessingTempBasal = false
+                activeCommand = null
+            }
+        }
+    }
+
+    fun cancelTempBasal() {
+        viewModelScope.launch {
+            try {
+                activeCommand = "Canceling Temp Basal"
+                LogManager.log("Canceling Temp Basal...")
+                val response = PumpManager.execute(PumpManager.commands.basalSetCancelTemporaryBasal())
+                LogManager.log("Cancel Temp Basal result: ${response.status}")
+                refreshAllStatus()
+            } catch (error: Throwable) {
+                LogManager.log("Cancel failed: ${error.message}")
+            } finally {
+                activeCommand = null
+            }
+        }
+    }
+
+    fun openExtendedBolusDialog() {
+        if (!sessionReady) return
+        extendedBolusAmountInput = "0.00"
+        extendedBolusDurationInput = "1"
+        showExtendedBolusDialog = true
+    }
+
+    fun startExtendedBolus() {
+        val amount = extendedBolusAmountInput.toDoubleOrNull() ?: return
+        val halfHours = extendedBolusDurationInput.toIntOrNull() ?: return
+        if (amount <= 0) return
+
+        viewModelScope.launch {
+            try {
+                isProcessingExtendedBolus = true
+                activeCommand = "Starting Extended Bolus"
+                LogManager.log("Starting Extended Bolus: $amount U over ${halfHours * 0.5}h...")
+                val response = PumpManager.execute(
+                    PumpManager.commands.bolusSetExtendedBolus(amount, halfHours)
+                )
+                LogManager.log("Extended Bolus result: ${response.status}")
+                showExtendedBolusDialog = false
+                refreshAllStatus()
+            } catch (error: Throwable) {
+                LogManager.log("Extended Bolus failed: ${error.message}")
+            } finally {
+                isProcessingExtendedBolus = false
+                activeCommand = null
+            }
+        }
+    }
+
+    fun cancelExtendedBolus() {
+        viewModelScope.launch {
+            try {
+                activeCommand = "Canceling Extended Bolus"
+                LogManager.log("Canceling Extended Bolus...")
+                val response = PumpManager.execute(PumpManager.commands.bolusSetExtendedBolusCancel())
+                LogManager.log("Cancel Extended Bolus result: ${response.status}")
+                refreshAllStatus()
+            } catch (error: Throwable) {
+                LogManager.log("Cancel failed: ${error.message}")
             } finally {
                 activeCommand = null
             }

@@ -74,6 +74,14 @@ fun UserControlView(viewModel: UserViewModel) {
         BasalProfileDialog(viewModel)
     }
 
+    if (viewModel.showTempBasalDialog) {
+        TempBasalDialog(viewModel)
+    }
+
+    if (viewModel.showExtendedBolusDialog) {
+        ExtendedBolusDialog(viewModel)
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -157,7 +165,7 @@ private fun StatusDashboard(viewModel: UserViewModel) {
                 Spacer(Modifier.height(16.dp))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(), 
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -178,7 +186,7 @@ private fun StatusDashboard(viewModel: UserViewModel) {
                             java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(Date(it))
                         } ?: "--"
                     )
-                    
+
                     OutlinedButton(
                         onClick = { viewModel.refreshAllStatus() },
                         enabled = viewModel.activeCommand == null,
@@ -291,12 +299,17 @@ private fun BasalCard(viewModel: UserViewModel) {
 
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { /* TODO */ }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { viewModel.openTempBasalDialog() },
+                    modifier = Modifier.weight(1f),
+                    enabled = viewModel.activeCommand == null
+                ) {
                     Text("Temp Basal")
                 }
                 OutlinedButton(
-                    onClick = { viewModel.stopBolus() }, // Reusing logic for stopping delivery
-                    modifier = Modifier.weight(1f)
+                    onClick = { viewModel.cancelTempBasal() },
+                    modifier = Modifier.weight(1f),
+                    enabled = viewModel.activeCommand == null
                 ) {
                     Text("Cancel")
                 }
@@ -324,17 +337,13 @@ private fun BolusCard(viewModel: UserViewModel) {
             )
 
             Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = { viewModel.openBolusDialog() },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = viewModel.activeCommand == null
-            ) {
-                Text("Start Bolus")
-            }
-            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { /* TODO */ }, modifier = Modifier.weight(1f)) {
-                    Text("Extended")
+                Button(
+                    onClick = { viewModel.openBolusDialog() },
+                    modifier = Modifier.weight(1f),
+                    enabled = viewModel.activeCommand == null
+                ) {
+                    Text("Start Bolus")
                 }
                 OutlinedButton(
                     onClick = { viewModel.stopBolus() },
@@ -343,6 +352,24 @@ private fun BolusCard(viewModel: UserViewModel) {
                     enabled = viewModel.activeCommand == null
                 ) {
                     Text("Stop Bolus")
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { viewModel.openExtendedBolusDialog() },
+                    modifier = Modifier.weight(1f),
+                    enabled = viewModel.activeCommand == null
+                ) {
+                    Text("Extended")
+                }
+                OutlinedButton(
+                    onClick = { viewModel.cancelExtendedBolus() },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    enabled = viewModel.activeCommand == null
+                ) {
+                    Text("Stop Ext.")
                 }
             }
         }
@@ -687,6 +714,113 @@ private fun BolusOptionsDialog(viewModel: UserViewModel) {
             TextButton(
                 onClick = { viewModel.showBolusOptionsDialog = false },
                 enabled = !viewModel.isSavingBolusOptions
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun TempBasalDialog(viewModel: UserViewModel) {
+    AlertDialog(
+        onDismissRequest = { if (!viewModel.isProcessingTempBasal) viewModel.showTempBasalDialog = false },
+        title = { Text("Set Temporary Basal") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = viewModel.tempBasalPercentInput,
+                    onValueChange = { viewModel.tempBasalPercentInput = it },
+                    label = { Text("Ratio (%)") },
+                    suffix = { Text("%") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !viewModel.isProcessingTempBasal
+                )
+                OutlinedTextField(
+                    value = viewModel.tempBasalDurationInput,
+                    onValueChange = { viewModel.tempBasalDurationInput = it },
+                    label = { Text("Duration (Hours)") },
+                    suffix = { Text("h") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !viewModel.isProcessingTempBasal
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { viewModel.startTempBasal() },
+                enabled = !viewModel.isProcessingTempBasal
+            ) {
+                if (viewModel.isProcessingTempBasal) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                } else {
+                    Text("Set Rate")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { viewModel.showTempBasalDialog = false },
+                enabled = !viewModel.isProcessingTempBasal
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ExtendedBolusDialog(viewModel: UserViewModel) {
+    AlertDialog(
+        onDismissRequest = { if (!viewModel.isProcessingExtendedBolus) viewModel.showExtendedBolusDialog = false },
+        title = { Text("Start Extended Bolus") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = viewModel.extendedBolusAmountInput,
+                    onValueChange = { viewModel.extendedBolusAmountInput = it },
+                    label = { Text("Amount (Units)") },
+                    suffix = { Text("U") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !viewModel.isProcessingExtendedBolus
+                )
+                OutlinedTextField(
+                    value = viewModel.extendedBolusDurationInput,
+                    onValueChange = { viewModel.extendedBolusDurationInput = it },
+                    label = { Text("Duration (Half Hours)") },
+                    suffix = { Text("x 30m") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !viewModel.isProcessingExtendedBolus
+                )
+
+                val halfHours = viewModel.extendedBolusDurationInput.toIntOrNull() ?: 0
+                Text(
+                    "Total Time: ${halfHours * 30} minutes (${halfHours * 0.5} hours)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { viewModel.startExtendedBolus() },
+                enabled = !viewModel.isProcessingExtendedBolus && viewModel.extendedBolusAmountInput.toDoubleOrNull() != null
+            ) {
+                if (viewModel.isProcessingExtendedBolus) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                } else {
+                    Text("Start")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { viewModel.showExtendedBolusDialog = false },
+                enabled = !viewModel.isProcessingExtendedBolus
             ) {
                 Text("Cancel")
             }
