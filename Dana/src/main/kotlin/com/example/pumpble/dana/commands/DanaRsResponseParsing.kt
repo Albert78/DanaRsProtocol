@@ -6,9 +6,6 @@ import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-internal const val DANA_UNITS_MGDL = 0
-internal const val DANA_UNITS_MMOL = 1
-
 internal fun ByteReader.requireRemainingAtLeast(count: Int, context: String) {
     if (remaining < count) {
         throw ProtocolException("$context requires at least $count byte(s), only $remaining available")

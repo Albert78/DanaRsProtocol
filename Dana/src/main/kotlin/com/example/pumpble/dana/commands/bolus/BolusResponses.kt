@@ -1,20 +1,9 @@
 package com.example.pumpble.dana.commands.bolus
 
 import com.example.pumpble.commands.PumpStatus
-import com.example.pumpble.dana.commands.DANA_UNITS_MGDL
-import com.example.pumpble.dana.commands.DANA_UNITS_MMOL
+import com.example.pumpble.dana.commands.DanaGlucoseUnits
 import com.example.pumpble.dana.commands.DanaRsResponse
 import java.time.LocalTime
-
-enum class DanaGlucoseUnits(val wireValue: Int) {
-    MGDL(DANA_UNITS_MGDL),
-    MMOL(DANA_UNITS_MMOL),
-    UNKNOWN(-1);
-
-    companion object {
-        fun fromWireValue(value: Int): DanaGlucoseUnits = entries.firstOrNull { it.wireValue == value } ?: UNKNOWN
-    }
-}
 
 /**
  * One paired carbohydrate-ratio/correction-factor value for a specific hour.
@@ -29,14 +18,32 @@ data class CirCfValue(
  */
 data class Bolus24CirCfArrayResponse(
     override val status: PumpStatus,
+    /**
+     * The glucose unit (mg/dL or mmol/L) currently configured on the pump.
+     */
     val units: DanaGlucoseUnits,
+    /**
+     * 24 hourly pairs of CIR and CF values.
+     */
     val valuesByHour: List<CirCfValue>,
 ) : DanaRsResponse
 
 data class MissedBolusWindow(
+    /**
+     * Hour when the window starts (0-23).
+     */
     val startHour: Int,
+    /**
+     * Minute when the window starts (0-59).
+     */
     val startMinute: Int,
+    /**
+     * Hour when the window ends (0-23).
+     */
     val endHour: Int,
+    /**
+     * Minute when the window ends (0-59).
+     */
     val endMinute: Int,
 )
 
@@ -45,9 +52,21 @@ data class MissedBolusWindow(
  */
 data class BolusOptionResponse(
     override val status: PumpStatus,
+    /**
+     * Whether the extended bolus feature is enabled in the pump menu.
+     */
     val extendedBolusEnabled: Boolean,
+    /**
+     * Bolus calculator option index.
+     */
     val bolusCalculationOption: Int,
+    /**
+     * Configuration bitmask for missed bolus reminders.
+     */
     val missedBolusConfig: Int,
+    /**
+     * List of 4 defined time windows for bolus reminders.
+     */
     val missedBolusWindows: List<MissedBolusWindow>,
 ) : DanaRsResponse
 
@@ -56,13 +75,37 @@ data class BolusOptionResponse(
  */
 data class BolusCalculationInformationResponse(
     override val status: PumpStatus,
+    /**
+     * Error code from the pump's calculation engine.
+     */
     val errorCode: Int,
+    /**
+     * The glucose unit (mg/dL or mmol/L) currently configured on the pump.
+     */
     val units: DanaGlucoseUnits,
+    /**
+     * Current blood glucose level (unit depends on [units]).
+     */
     val currentBloodGlucose: Double,
+    /**
+     * Grams of carbohydrates entered.
+     */
     val carbohydrateGrams: Int,
+    /**
+     * Current target blood glucose level (unit depends on [units]).
+     */
     val currentTarget: Double,
+    /**
+     * Currently active carbohydrate ratio (CIR).
+     */
     val currentCarbRatio: Int,
+    /**
+     * Currently active correction factor (CF).
+     */
     val currentCorrectionFactor: Double,
+    /**
+     * Amount of insulin currently active in the body in Units (U).
+     */
     val insulinOnBoardUnits: Double,
 ) : DanaRsResponse
 
@@ -71,9 +114,21 @@ data class BolusCalculationInformationResponse(
  */
 data class BolusCirCfArrayResponse(
     override val status: PumpStatus,
+    /**
+     * Language ID.
+     */
     val language: Int,
+    /**
+     * The glucose unit (mg/dL or mmol/L) currently configured on the pump.
+     */
     val units: DanaGlucoseUnits,
+    /**
+     * List of 7 CIR values.
+     */
     val cirValues: List<Int>,
+    /**
+     * List of 7 CF values.
+     */
     val cfValues: List<Double>,
 ) : DanaRsResponse
 
@@ -82,15 +137,33 @@ data class BolusCirCfArrayResponse(
  */
 data class BolusStepBolusInformationResponse(
     override val status: PumpStatus,
+    /**
+     * Error code from the pump.
+     */
     val errorCode: Int,
+    /**
+     * Type of bolus (e.g., 0 = step bolus).
+     */
     val bolusType: Int,
+    /**
+     * Amount for a fresh bolus startup in Units (U).
+     */
     val initialBolusAmountUnits: Double,
 
     /**
      * Gets the time when the bolus was injected, in UTC time.
      */
     val lastBolusTimeOfDayUTC: LocalTime,
+    /**
+     * Amount of the last delivered bolus in Units (U).
+     */
     val lastBolusAmountUnits: Double,
+    /**
+     * Maximum allowed bolus amount in Units (U).
+     */
     val maxBolusUnits: Double,
+    /**
+     * Incremental step size for bolus adjustments in Units (U).
+     */
     val bolusStepUnits: Double,
 ) : DanaRsResponse

@@ -1,6 +1,7 @@
 package com.example.pumpble.dana.commands.options
 
 import com.example.pumpble.commands.PumpStatus
+import com.example.pumpble.dana.commands.DanaGlucoseUnits
 import com.example.pumpble.dana.commands.DanaRsAckPacketCommand
 import com.example.pumpble.dana.commands.DanaRsPacketCommand
 import com.example.pumpble.dana.commands.DanaRsPacketRegistry
@@ -55,7 +56,7 @@ class OptionGetUserOptionCommand :
         val lcdOnTimeSec = reader.readUInt8()
         val backlightOnTimeSec = reader.readUInt8()
         val selectedLanguage = reader.readUInt8()
-        val units = reader.readUInt8()
+        val units = DanaGlucoseUnits.fromWireValue(reader.readUInt8())
         val shutdownHour = reader.readUInt8()
         val lowReservoirRate = reader.readUInt8()
         val cannulaVolume = reader.readUInt16Le()
@@ -112,23 +113,38 @@ class OptionSetPumpUtcAndTimeZoneCommand(
 }
 
 class OptionSetUserOptionCommand(
+    /**
+     * Set of user options including display, alerts, and thresholds.
+     */
     private val options: DanaRsUserOptions,
 ) : DanaRsAckPacketCommand(DanaRsPacketRegistry.OPTION_SET_USER_OPTION) {
     override fun encodePayload(writer: ByteWriter) {
+        // 0 = 24h, 1 = 12h
         writer.writeUInt8(if (options.timeDisplayType24) 0 else 1)
+        // 0 = Off, 1 = On
         writer.writeUInt8(if (options.buttonScrollOnOff) 1 else 0)
+        // Level 1-5
         writer.writeUInt8(options.beepAndAlarm)
+        // Time in seconds
         writer.writeUInt8(options.lcdOnTimeSec)
+        // Time in seconds
         writer.writeUInt8(options.backlightOnTimeSec)
+        // Language ID
         writer.writeUInt8(options.selectedLanguage)
-        writer.writeUInt8(options.units)
+        // 0 = mg/dL, 1 = mmol/L
+        writer.writeUInt8(options.units.wireValue)
+        // Time in hours
         writer.writeUInt8(options.shutdownHour)
+        // Amount in Units (U)
         writer.writeUInt8(options.lowReservoirRate)
+        // Amount in Centi-Units (0.01 U)
         writer.writeUInt8(options.cannulaVolume and 0xff)
         writer.writeUInt8((options.cannulaVolume ushr 8) and 0xff)
+        // Amount in Units (U)
         writer.writeUInt8(options.refillAmount and 0xff)
         writer.writeUInt8((options.refillAmount ushr 8) and 0xff)
         if (options.hwModel >= 7) {
+            // Amount in Units (depends on [units] setting)
             writer.writeUInt8(options.target and 0xff)
             writer.writeUInt8((options.target ushr 8) and 0xff)
         }

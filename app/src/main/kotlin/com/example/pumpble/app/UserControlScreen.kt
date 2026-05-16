@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.pumpble.dana.commands.DanaGlucoseUnits
 import com.example.pumpble.dana.commands.DanaRsBolusSpeed
 import com.example.pumpble.dana.commands.options.DanaRsLanguage
 import java.util.Date
@@ -717,7 +718,7 @@ private fun UserOptionsDialog(viewModel: UserViewModel) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Glucose Units", style = MaterialTheme.typography.bodyLarge)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(0 to "mg/dL", 1 to "mmol/L").forEach { (value, label) ->
+                            listOf(DanaGlucoseUnits.MGDL to "mg/dL", DanaGlucoseUnits.MMOL to "mmol/L").forEach { (value, label) ->
                                 val selected = options.units == value
                                 OutlinedButton(
                                     onClick = { viewModel.editingUserOptions = options.copy(units = value) },

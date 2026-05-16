@@ -1,8 +1,7 @@
 package com.example.pumpble.dana.commands.bolus
 
 import com.example.pumpble.commands.PumpStatus
-import com.example.pumpble.dana.commands.DANA_UNITS_MGDL
-import com.example.pumpble.dana.commands.DANA_UNITS_MMOL
+import com.example.pumpble.dana.commands.DanaGlucoseUnits
 import com.example.pumpble.dana.commands.DanaRsAckPacketCommand
 import com.example.pumpble.dana.commands.DanaRsBolusSpeed
 import com.example.pumpble.dana.commands.DanaRsPacketCommand
@@ -24,7 +23,7 @@ class BolusGet24CIRCFArrayCommand :
         val cirValues = List(24) { reader.readUInt16Le().toDouble() }
         val cfValues = List(24) {
             val raw = reader.readUInt16Le()
-            if (unitsRaw == DANA_UNITS_MGDL) raw.toDouble() else raw / 100.0
+            if (units == DanaGlucoseUnits.MGDL) raw.toDouble() else raw / 100.0
         }
         reader.discardRemaining()
         return Bolus24CirCfArrayResponse(
@@ -72,8 +71,8 @@ class BolusGetCalculationInformationCommand :
         val currentCarbRatio = reader.readUInt16Le()
         var currentCorrectionFactor = reader.readUInt16Le().toDouble()
         val insulinOnBoard = reader.readUInt16Le() / 100.0
-        val unitsRaw = reader.readUInt8()
-        if (unitsRaw == DANA_UNITS_MMOL) {
+        val units = DanaGlucoseUnits.fromWireValue(reader.readUInt8())
+        if (units == DanaGlucoseUnits.MMOL) {
             currentBloodGlucose /= 100.0
             currentTarget /= 100.0
             currentCorrectionFactor /= 100.0
@@ -82,7 +81,7 @@ class BolusGetCalculationInformationCommand :
         return BolusCalculationInformationResponse(
             status = PumpStatus.fromCode(errorCode),
             errorCode = errorCode,
-            units = DanaGlucoseUnits.fromWireValue(unitsRaw),
+            units = units,
             currentBloodGlucose = currentBloodGlucose,
             carbohydrateGrams = carbohydrate,
             currentTarget = currentTarget,
@@ -98,13 +97,12 @@ class BolusGetCIRCFArrayCommand :
     override fun decodePayload(reader: ByteReader): BolusCirCfArrayResponse {
         reader.requireRemainingAtLeast(30, name)
         val language = reader.readUInt8()
-        val unitsRaw = reader.readUInt8()
+        val units = DanaGlucoseUnits.fromWireValue(reader.readUInt8())
         val cirValues = List(7) { reader.readUInt16Le() }
         val cfValues = List(7) {
             val raw = reader.readUInt16Le()
-            if (unitsRaw == DANA_UNITS_MGDL) raw.toDouble() else raw / 100.0
+            if (units == DanaGlucoseUnits.MGDL) raw.toDouble() else raw / 100.0
         }
-        val units = DanaGlucoseUnits.fromWireValue(unitsRaw)
         reader.discardRemaining()
         return BolusCirCfArrayResponse(
             status = if (units == DanaGlucoseUnits.UNKNOWN) PumpStatus.INVALID_PARAMETER else PumpStatus.OK,
@@ -143,10 +141,17 @@ class BolusGetStepBolusInformationCommand :
 }
 
 class BolusSetStepBolusStartCommand(
+    /**
+     * Amount of insulin to deliver in Units (U).
+     */
     private val amountUnits: Double,
+    /**
+     * Speed of bolus delivery.
+     */
     private val speed: DanaRsBolusSpeed,
 ) : DanaRsAckPacketCommand(DanaRsPacketRegistry.BOLUS_SET_STEP_BOLUS_START) {
     override fun encodePayload(writer: ByteWriter) {
+        // Written as Centi-Units (0.01 U)
         writer.writeBytes(le16((amountUnits * 100.0).roundToInt()))
         writer.writeUInt8(speed.wireValue)
     }
@@ -155,10 +160,17 @@ class BolusSetStepBolusStartCommand(
 class BolusSetStepBolusStopCommand : DanaRsAckPacketCommand(DanaRsPacketRegistry.BOLUS_SET_STEP_BOLUS_STOP)
 
 class BolusSetExtendedBolusCommand(
+    /**
+     * Total amount of insulin to deliver over the duration in Units (U).
+     */
     private val amountUnits: Double,
+    /**
+     * Duration of delivery in 30-minute increments (e.g., 2 = 1 hour).
+     */
     private val durationHalfHours: Int,
 ) : DanaRsAckPacketCommand(DanaRsPacketRegistry.BOLUS_SET_EXTENDED_BOLUS) {
     override fun encodePayload(writer: ByteWriter) {
+        // Written as Centi-Units (0.01 U)
         writer.writeBytes(le16((amountUnits * 100.0).roundToInt()))
         writer.writeUInt8(durationHalfHours)
     }

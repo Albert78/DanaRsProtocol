@@ -26,18 +26,57 @@ enum class DanaRsPumpErrorState(val code: Int) {
  */
 data class GeneralInitialScreenInformationResponse(
     override val status: PumpStatus,
+    /**
+     * Whether insulin delivery is currently suspended.
+     */
     val pumpSuspended: Boolean,
+    /**
+     * Whether a temporary basal rate is currently active.
+     */
     val tempBasalInProgress: Boolean,
+    /**
+     * Whether an extended bolus is currently being delivered.
+     */
     val extendedBolusInProgress: Boolean,
+    /**
+     * Whether a dual bolus is currently being delivered.
+     */
     val dualBolusInProgress: Boolean,
+    /**
+     * Total insulin delivered today in Units (U).
+     */
     val dailyTotalUnits: Double,
+    /**
+     * Maximum daily total limit in Units (U).
+     */
     val maxDailyTotalUnits: Int,
+    /**
+     * Remaining insulin in the reservoir in Units (U).
+     */
     val reservoirRemainingUnits: Double,
+    /**
+     * Currently active basal rate in Units per Hour (U/h).
+     */
     val currentBasalUnitsPerHour: Double,
+    /**
+     * Currently active temporary basal ratio in percent.
+     */
     val tempBasalPercent: Int,
+    /**
+     * Remaining battery level in percent.
+     */
     val batteryRemainingPercent: Int,
+    /**
+     * Delivery rate of the active extended bolus in Units per Hour (U/h).
+     */
     val extendedBolusAbsoluteRate: Double,
+    /**
+     * Active insulin on board in Units (U).
+     */
     val insulinOnBoardUnits: Double,
+    /**
+     * Current technical error or warning state of the pump.
+     */
     val errorState: DanaRsPumpErrorState,
 ) : DanaRsResponse
 

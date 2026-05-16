@@ -8,9 +8,21 @@ import com.example.pumpble.dana.commands.DanaRsResponse
  */
 data class BasalRateProfileResponse(
     override val status: PumpStatus,
+    /**
+     * Maximum allowed basal rate in Units per Hour (U/h).
+     */
     val maxBasalUnitsPerHour: Double,
+    /**
+     * Incremental step size for basal adjustments in Units (U).
+     */
     val basalStepUnits: Double,
+    /**
+     * List of 24 hourly basal rates in Units per Hour (U/h).
+     */
     val hourlyRatesUnits: List<Double>,
+    /**
+     * Whether the pump hardware supports the current basal step size.
+     */
     val basalStepSupported: Boolean,
 ) : DanaRsResponse
 
@@ -19,5 +31,8 @@ data class BasalRateProfileResponse(
  */
 data class BasalProfileNumberResponse(
     override val status: PumpStatus,
+    /**
+     * Index of the currently active basal profile (0-3).
+     */
     val activeProfile: Int,
 ) : DanaRsResponse

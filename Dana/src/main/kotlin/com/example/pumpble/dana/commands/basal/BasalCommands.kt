@@ -45,7 +45,13 @@ class BasalGetProfileNumberCommand :
 class BasalSetCancelTemporaryBasalCommand : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_CANCEL_TEMPORARY_BASAL)
 
 class BasalSetTemporaryBasalCommand(
+    /**
+     * Basal rate ratio in percent (e.g., 150 = 150%).
+     */
     private val ratioPercent: Int,
+    /**
+     * Duration of temporary basal in full hours.
+     */
     private val durationHours: Int,
 ) : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_TEMPORARY_BASAL) {
     override fun encodePayload(writer: ByteWriter) {
@@ -55,6 +61,9 @@ class BasalSetTemporaryBasalCommand(
 }
 
 class BasalSetProfileNumberCommand(
+    /**
+     * Index of the basal profile to activate (0-3).
+     */
     private val profileNumber: Int,
 ) : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_PROFILE_NUMBER) {
     override fun encodePayload(writer: ByteWriter) {
@@ -67,7 +76,13 @@ class BasalSetSuspendOffCommand : DanaRsAckPacketCommand(DanaRsPacketRegistry.BA
 class BasalSetSuspendOnCommand : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_SUSPEND_ON)
 
 class BasalSetProfileBasalRateCommand(
+    /**
+     * Index of the profile to edit (0-3).
+     */
     private val profileNumber: Int,
+    /**
+     * List of 24 hourly rates in Units (U).
+     */
     private val hourlyRatesUnits: List<Double>,
 ) : DanaRsAckPacketCommand(DanaRsPacketRegistry.BASAL_SET_PROFILE_BASAL_RATE) {
     init {
@@ -77,6 +92,7 @@ class BasalSetProfileBasalRateCommand(
     override fun encodePayload(writer: ByteWriter) {
         writer.writeUInt8(profileNumber)
         hourlyRatesUnits.forEach { rate ->
+            // Written as Centi-Units (0.01 U)
             writer.writeBytes(le16((rate * 100.0).roundToInt()))
         }
     }
