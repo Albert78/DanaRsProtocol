@@ -678,24 +678,81 @@ private fun BolusOptionsDialog(viewModel: UserViewModel) {
         onDismissRequest = { if (!viewModel.isSavingBolusOptions) viewModel.showBolusOptionsDialog = false },
         title = { Text("Bolus Options") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Extended Bolus", style = MaterialTheme.typography.bodyLarge)
-                        Text("Enable extended bolus feature", style = MaterialTheme.typography.bodySmall)
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Extended Bolus", style = MaterialTheme.typography.bodyLarge)
+                            Text("Enable extended bolus feature", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(
+                            checked = options.extendedBolusEnabled,
+                            onCheckedChange = { viewModel.editingBolusOptions = options.copy(extendedBolusEnabled = it) },
+                            enabled = !viewModel.isSavingBolusOptions
+                        )
                     }
-                    Switch(
-                        checked = options.extendedBolusEnabled,
-                        onCheckedChange = { viewModel.editingBolusOptions = options.copy(extendedBolusEnabled = it) },
-                        enabled = !viewModel.isSavingBolusOptions
-                    )
                 }
 
-                Text(
-                    "Note: More bolus calculation settings will be available in a future update.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Missed Bolus Reminder", style = MaterialTheme.typography.bodyLarge)
+                            Text("Notify if no bolus delivered in windows", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(
+                            checked = options.missedBolusConfig != 0,
+                            onCheckedChange = { viewModel.editingBolusOptions = options.copy(missedBolusConfig = if (it) 1 else 0) },
+                            enabled = !viewModel.isSavingBolusOptions
+                        )
+                    }
+                }
+
+                if (options.missedBolusConfig != 0) {
+                    item {
+                        Text("Reminder Windows", style = MaterialTheme.typography.titleSmall)
+                    }
+                    items(options.missedBolusWindows.size) { index ->
+                        val window = options.missedBolusWindows[index]
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        ) {
+                            Column(Modifier.padding(8.dp)) {
+                                Text("Window ${index + 1}", style = MaterialTheme.typography.labelSmall)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    TimeInputField(
+                                        label = "Start",
+                                        hour = window.startHour,
+                                        minute = window.startMinute,
+                                        onValueChange = { h, m ->
+                                            val newWindows = options.missedBolusWindows.toMutableList()
+                                            newWindows[index] = window.copy(startHour = h, startMinute = m)
+                                            viewModel.editingBolusOptions = options.copy(missedBolusWindows = newWindows)
+                                        },
+                                        enabled = !viewModel.isSavingBolusOptions,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text("to")
+                                    TimeInputField(
+                                        label = "End",
+                                        hour = window.endHour,
+                                        minute = window.endMinute,
+                                        onValueChange = { h, m ->
+                                            val newWindows = options.missedBolusWindows.toMutableList()
+                                            newWindows[index] = window.copy(endHour = h, endMinute = m)
+                                            viewModel.editingBolusOptions = options.copy(missedBolusWindows = newWindows)
+                                        },
+                                        enabled = !viewModel.isSavingBolusOptions,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -719,6 +776,43 @@ private fun BolusOptionsDialog(viewModel: UserViewModel) {
             }
         }
     )
+}
+
+@Composable
+private fun TimeInputField(
+    label: String,
+    hour: Int,
+    minute: Int,
+    onValueChange: (Int, Int) -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        OutlinedTextField(
+            value = "%02d".format(hour),
+            onValueChange = { 
+                val h = it.toIntOrNull()?.coerceIn(0, 23) ?: hour
+                onValueChange(h, minute)
+            },
+            label = { Text(label) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            enabled = enabled,
+            singleLine = true
+        )
+        Text(":", modifier = Modifier.padding(horizontal = 4.dp))
+        OutlinedTextField(
+            value = "%02d".format(minute),
+            onValueChange = { 
+                val m = it.toIntOrNull()?.coerceIn(0, 59) ?: minute
+                onValueChange(hour, m)
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            enabled = enabled,
+            singleLine = true
+        )
+    }
 }
 
 @Composable
