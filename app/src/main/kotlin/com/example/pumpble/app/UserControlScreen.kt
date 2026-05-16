@@ -49,6 +49,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.pumpble.dana.commands.DanaRsBolusSpeed
+import com.example.pumpble.dana.commands.options.DanaRsLanguage
 import java.util.Date
 
 @Composable
@@ -694,7 +695,7 @@ private fun UserOptionsDialog(viewModel: UserViewModel) {
                                         ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                                         else ButtonDefaults.outlinedButtonColors()
                                 ) {
-                                    Text("ID $langId")
+                                    Text(DanaRsLanguage.getName(langId))
                                 }
                             }
                         }
