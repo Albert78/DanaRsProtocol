@@ -29,6 +29,27 @@ class BasalGetBasalRateCommand :
     }
 }
 
+class BasalGetProfileBasalRateCommand(
+    /**
+     * Index of the basal profile to retrieve (0-3).
+     */
+    private val profileNumber: Int,
+) : DanaRsPacketCommand<BasalProfileBasalRateResponse>(DanaRsPacketRegistry.BASAL_GET_PROFILE_BASAL_RATE) {
+    override fun encodePayload(writer: ByteWriter) {
+        writer.writeUInt8(profileNumber)
+    }
+
+    override fun decodePayload(reader: ByteReader): BasalProfileBasalRateResponse {
+        reader.requireRemainingAtLeast(48, name)
+        val rates = List(24) { reader.readUInt16Le() / 100.0 }
+        reader.discardRemaining()
+        return BasalProfileBasalRateResponse(
+            status = PumpStatus.OK,
+            hourlyRatesUnits = rates
+        )
+    }
+}
+
 class BasalGetProfileNumberCommand :
     DanaRsPacketCommand<BasalProfileNumberResponse>(DanaRsPacketRegistry.BASAL_GET_PROFILE_NUMBER) {
     override fun decodePayload(reader: ByteReader): BasalProfileNumberResponse {

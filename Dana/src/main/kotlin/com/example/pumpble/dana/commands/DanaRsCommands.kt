@@ -4,6 +4,7 @@ import com.example.pumpble.dana.commands.aps.ApsBasalSetTemporaryBasalCommand
 import com.example.pumpble.dana.commands.aps.ApsHistoryEventsCommand
 import com.example.pumpble.dana.commands.aps.ApsSetEventHistoryCommand
 import com.example.pumpble.dana.commands.basal.BasalGetBasalRateCommand
+import com.example.pumpble.dana.commands.basal.BasalGetProfileBasalRateCommand
 import com.example.pumpble.dana.commands.basal.BasalGetProfileNumberCommand
 import com.example.pumpble.dana.commands.basal.BasalSetCancelTemporaryBasalCommand
 import com.example.pumpble.dana.commands.basal.BasalSetProfileBasalRateCommand
@@ -47,6 +48,7 @@ import com.example.pumpble.dana.commands.history.HistoryPrimeCommand
 import com.example.pumpble.dana.commands.history.HistoryRefillCommand
 import com.example.pumpble.dana.commands.history.HistorySuspendCommand
 import com.example.pumpble.dana.commands.history.HistoryTemporaryCommand
+import com.example.pumpble.dana.commands.options.DanaRsUserOptions
 import com.example.pumpble.dana.commands.options.OptionGetPumpTimeCommand
 import com.example.pumpble.dana.commands.options.OptionGetPumpUtcAndTimeZoneCommand
 import com.example.pumpble.dana.commands.options.OptionGetUserOptionCommand
@@ -65,6 +67,7 @@ class DanaRsCommands {
     val definitions: List<DanaRsPacketDefinition> = DanaRsPacketRegistry.all
 
     fun basalGetBasalRate() = BasalGetBasalRateCommand()
+    fun basalGetProfileBasalRate(profileNumber: Int) = BasalGetProfileBasalRateCommand(profileNumber)
     fun basalGetProfileNumber() = BasalGetProfileNumberCommand()
     fun basalSetCancelTemporaryBasal() = BasalSetCancelTemporaryBasalCommand()
     fun basalSetTemporaryBasal(ratioPercent: Int, durationHours: Int) =

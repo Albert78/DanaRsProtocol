@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.pumpble.dana.commands.DanaGlucoseUnits
 import com.example.pumpble.dana.commands.DanaRsBolusSpeed
 import com.example.pumpble.dana.commands.bolus.BolusOptionResponse
 import com.example.pumpble.dana.commands.bolus.BolusRateResponse
@@ -58,10 +59,18 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     var editingBolusRate by mutableStateOf<BolusRateResponse?>(null)
     var isSavingBolusOptions by mutableStateOf(false)
 
-    // Basal Profile Dialog State
-    var showBasalProfileDialog by mutableStateOf(false)
+    // Basal Profiles Dialog State
+    var showBasalProfilesDialog by mutableStateOf(false)
+    var selectedBasalProfileIndex by mutableStateOf(0) // 0:A, 1:B, 2:C, 3:D
     var editingBasalRates by mutableStateOf<List<Double>?>(null)
-    var isSavingBasalProfile by mutableStateOf(false)
+    var isSavingBasalProfiles by mutableStateOf(false)
+    var isLoadingBasalProfile by mutableStateOf(false)
+
+    // Bolus Profile Dialog State (CIR, CF)
+    var showBolusProfileDialog by mutableStateOf(false)
+    var editingCirValues by mutableStateOf<List<Double>?>(null)
+    var editingCfValues by mutableStateOf<List<Double>?>(null)
+    var isSavingBolusProfile by mutableStateOf(false)
 
     // Temp Basal Dialog State
     var showTempBasalDialog by mutableStateOf(false)
@@ -339,50 +348,130 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun openBasalProfileDialog() {
+    fun openBasalProfilesDialog() {
         if (!sessionReady) {
             LogManager.log("Action failed: Handshake required")
             return
         }
         viewModelScope.launch {
             try {
-                activeCommand = "Loading Basal Profile"
-                val response = PumpManager.execute(PumpManager.commands.basalGetBasalRate())
-                PumpManager.basalRateInfo = response
-                editingBasalRates = response.hourlyRatesUnits
-                showBasalProfileDialog = true
+                activeCommand = "Loading Basal"
+                isLoadingBasalProfile = true
+
+                // Get current profile index first
+                val profileInfo = PumpManager.execute(PumpManager.commands.basalGetProfileNumber())
+                selectedBasalProfileIndex = profileInfo.activeProfile
+
+                // Fetch rates for that profile
+                val basalResponse = PumpManager.execute(PumpManager.commands.basalGetProfileBasalRate(selectedBasalProfileIndex))
+                editingBasalRates = basalResponse.hourlyRatesUnits
+
+                showBasalProfilesDialog = true
             } catch (e: Exception) {
                 LogManager.log("Failed to fetch basal profile: ${e.message}")
+            } finally {
+                isLoadingBasalProfile = false
+                activeCommand = null
+            }
+        }
+    }
+
+    fun switchBasalProfile(index: Int) {
+        if (isLoadingBasalProfile || isSavingBasalProfiles) return
+        selectedBasalProfileIndex = index
+        viewModelScope.launch {
+            try {
+                activeCommand = "Loading Basal $index"
+                isLoadingBasalProfile = true
+                val basalResponse = PumpManager.execute(PumpManager.commands.basalGetProfileBasalRate(index))
+                editingBasalRates = basalResponse.hourlyRatesUnits
+            } catch (e: Exception) {
+                LogManager.log("Failed to fetch basal profile $index: ${e.message}")
+            } finally {
+                isLoadingBasalProfile = false
+                activeCommand = null
+            }
+        }
+    }
+
+    fun saveBasalProfiles() {
+        val basalRates = editingBasalRates ?: return
+        val profileIndex = selectedBasalProfileIndex
+
+        viewModelScope.launch {
+            try {
+                isSavingBasalProfiles = true
+                activeCommand = "Saving Basal"
+                LogManager.log("Saving Basal Profile $profileIndex...")
+
+                PumpManager.execute(
+                    PumpManager.commands.basalSetProfileBasalRate(
+                        profileNumber = profileIndex,
+                        hourlyRatesUnits = basalRates
+                    )
+                )
+
+                LogManager.log("Basal Profile $profileIndex saved")
+                showBasalProfilesDialog = false
+                refreshAllStatus()
+            } catch (error: Throwable) {
+                LogManager.log("Save failed: ${error.message}")
+            } finally {
+                isSavingBasalProfiles = false
+                activeCommand = null
+            }
+        }
+    }
+
+    fun openBolusProfileDialog() {
+        if (!sessionReady) {
+            LogManager.log("Action failed: Handshake required")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                activeCommand = "Loading Bolus Profile"
+                val circfResponse = PumpManager.execute(PumpManager.commands.bolusGet24CIRCFArray())
+                editingCirValues = circfResponse.valuesByHour.map { it.cir }
+                editingCfValues = circfResponse.valuesByHour.map { it.cf }
+                showBolusProfileDialog = true
+            } catch (e: Exception) {
+                LogManager.log("Failed to fetch bolus profile: ${e.message}")
             } finally {
                 activeCommand = null
             }
         }
     }
 
-    fun saveBasalProfile() {
-        val rates = editingBasalRates ?: return
+    fun saveBolusProfile() {
+        val cirValues = editingCirValues ?: return
+        val cfValues = editingCfValues ?: return
+
         viewModelScope.launch {
             try {
-                isSavingBasalProfile = true
-                activeCommand = "Saving Basal Profile"
-                LogManager.log("Saving Basal Profile...")
+                isSavingBolusProfile = true
+                activeCommand = "Saving Bolus Profile"
+                LogManager.log("Saving CIR/CF Profile...")
 
-                // Fetch current profile number first
-                val profileInfo = PumpManager.execute(PumpManager.commands.basalGetProfileNumber())
+                val units = userOptions?.units ?: DanaGlucoseUnits.MGDL
+                val icArray = IntArray(24) { i -> cirValues[i].toInt() }
+                val cfArray = IntArray(24) { i ->
+                    if (units == DanaGlucoseUnits.MGDL) {
+                        cfValues[i].toInt()
+                    } else {
+                        (cfValues[i] * 100.0).toInt()
+                    }
+                }
 
-                val response = PumpManager.execute(
-                    PumpManager.commands.basalSetProfileBasalRate(
-                        profileNumber = profileInfo.activeProfile,
-                        hourlyRatesUnits = rates
-                    )
-                )
-                LogManager.log("Save Basal Profile result: ${response.status}")
-                showBasalProfileDialog = false
+                PumpManager.execute(PumpManager.commands.bolusSet24CIRCFArray(icArray, cfArray))
+
+                LogManager.log("Bolus profile saved")
+                showBolusProfileDialog = false
                 refreshAllStatus()
             } catch (error: Throwable) {
                 LogManager.log("Save failed: ${error.message}")
             } finally {
-                isSavingBasalProfile = false
+                isSavingBolusProfile = false
                 activeCommand = null
             }
         }

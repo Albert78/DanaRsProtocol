@@ -39,6 +39,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -78,8 +82,12 @@ fun UserControlView(viewModel: UserViewModel) {
         BolusOptionsDialog(viewModel)
     }
 
-    if (viewModel.showBasalProfileDialog) {
-        BasalProfileDialog(viewModel)
+    if (viewModel.showBasalProfilesDialog) {
+        BasalProfilesDialog(viewModel)
+    }
+
+    if (viewModel.showBolusProfileDialog) {
+        BolusProfileDialog(viewModel)
     }
 
     if (viewModel.showTempBasalDialog) {
@@ -118,7 +126,8 @@ fun UserControlView(viewModel: UserViewModel) {
         onCancelExtendedBolus = { viewModel.cancelExtendedBolus() },
         onOpenUserOptions = { viewModel.openUserOptionsDialog() },
         onOpenBolusOptions = { viewModel.openBolusOptionsDialog() },
-        onOpenBasalProfiles = { viewModel.openBasalProfileDialog() },
+        onOpenBasalProfiles = { viewModel.openBasalProfilesDialog() },
+        onOpenBolusProfile = { viewModel.openBolusProfileDialog() },
         onSyncTime = { viewModel.syncPumpTime() }
     )
 }
@@ -150,6 +159,7 @@ fun UserControlContent(
     onOpenUserOptions: () -> Unit,
     onOpenBolusOptions: () -> Unit,
     onOpenBasalProfiles: () -> Unit,
+    onOpenBolusProfile: () -> Unit,
     onSyncTime: () -> Unit
 ) {
     LazyColumn(
@@ -206,7 +216,8 @@ fun UserControlContent(
                 OptionsCard(
                     onOpenUserOptions = onOpenUserOptions,
                     onOpenBolusOptions = onOpenBolusOptions,
-                    onOpenBasalProfiles = onOpenBasalProfiles
+                    onOpenBasalProfiles = onOpenBasalProfiles,
+                    onOpenBolusProfile = onOpenBolusProfile
                 )
             }
             item {
@@ -416,7 +427,7 @@ private fun BasalCard(
 
             if (pumpStatus?.tempBasalInProgress == true) {
                 Text(
-                    "Temp Basal: ${pumpStatus?.tempBasalPercent}%",
+                    "Temp Basal: ${pumpStatus.tempBasalPercent}%",
                     color = MaterialTheme.colorScheme.tertiary,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -513,7 +524,8 @@ private fun BolusCard(
 private fun OptionsCard(
     onOpenUserOptions: () -> Unit,
     onOpenBolusOptions: () -> Unit,
-    onOpenBasalProfiles: () -> Unit
+    onOpenBasalProfiles: () -> Unit,
+    onOpenBolusProfile: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -523,53 +535,7 @@ private fun OptionsCard(
             SettingsRow(Icons.Default.Settings, "User Options", onOpenUserOptions)
             SettingsRow(Icons.Default.Settings, "Bolus Options", onOpenBolusOptions)
             SettingsRow(Icons.Default.Settings, "Basal Profiles", onOpenBasalProfiles)
-        }
-    }
-}
-
-@Composable
-private fun PumpInfoCard(
-    pumpTimeInfo: OptionPumpUtcAndTimeZoneResponse?,
-    userOptions: OptionUserOptionsResponse?,
-    sessionReady: Boolean,
-    activeCommand: String?,
-    onSyncTime: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Pump Information",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(8.dp))
-
-            val pumpTimeLocal = pumpTimeInfo?.let { it.pumpUtcTime.plusHours(it.zoneOffsetHours.toLong()) }
-            InfoRow("Pump Time", pumpTimeLocal?.toString()?.replace("T", " ")?.take(16) ?: "--")
-            InfoRow("Time Zone Offset", pumpTimeInfo?.let { "UTC%+d".format(it.zoneOffsetHours) } ?: "--")
-
-            if (userOptions != null) {
-                InfoRow("Languages", userOptions.selectableLanguages.size.toString())
-            }
-
-            Spacer(Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = onSyncTime,
-                enabled = sessionReady && activeCommand == null,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (activeCommand == "Syncing Time") {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                }
-                Spacer(Modifier.width(8.dp))
-                Text("Sync Pump Time with Phone")
-            }
+            SettingsRow(Icons.Default.Settings, "Bolus Profile (CIR/CF)", onOpenBolusProfile)
         }
     }
 }
@@ -912,39 +878,73 @@ private fun UserOptionsDialog(viewModel: UserViewModel) {
 }
 
 @Composable
-private fun BasalProfileDialog(viewModel: UserViewModel) {
+private fun BasalProfilesDialog(viewModel: UserViewModel) {
     val rates = viewModel.editingBasalRates ?: return
 
     AlertDialog(
-        onDismissRequest = { if (!viewModel.isSavingBasalProfile) viewModel.showBasalProfileDialog = false },
-        title = { Text("Edit Basal Profile") },
+        onDismissRequest = { if (!viewModel.isSavingBasalProfiles) viewModel.showBasalProfilesDialog = false },
+        title = {
+            Column {
+                Text("Edit Basal Profiles")
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    listOf("A", "B", "C", "D").forEachIndexed { index, label ->
+                        val selected = viewModel.selectedBasalProfileIndex == index
+                        OutlinedButton(
+                            onClick = { viewModel.switchBasalProfile(index) },
+                            modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
+                            enabled = !viewModel.isLoadingBasalProfile && !viewModel.isSavingBasalProfiles,
+                            colors = if (selected)
+                                ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                                else ButtonDefaults.outlinedButtonColors(),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(label)
+                        }
+                    }
+                }
+            }
+        },
         text = {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.height(400.dp)) {
-                items(24) { hour ->
+            Column {
+                if (viewModel.isLoadingBasalProfile) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("%02d:00".format(hour), modifier = Modifier.width(60.dp))
-                        OutlinedTextField(
-                            value = rates[hour].toString(),
-                            onValueChange = {
-                                val newRates = rates.toMutableList()
-                                newRates[hour] = it.toDoubleOrNull() ?: rates[hour]
-                                viewModel.editingBasalRates = newRates
-                            },
-                            label = { Text("U/h") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !viewModel.isSavingBasalProfile
-                        )
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text("Loading profile data...", style = MaterialTheme.typography.labelSmall)
+                    }
+                } else {
+                    Text("Units per Hour (U/h)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    Spacer(Modifier.height(8.dp))
+
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.height(400.dp)) {
+                        items(24) { hour ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("%02d:00".format(hour), modifier = Modifier.width(60.dp))
+                                OutlinedTextField(
+                                    value = rates[hour].toString(),
+                                    onValueChange = { input ->
+                                        val newRates = rates.toMutableList()
+                                        newRates[hour] = input.toDoubleOrNull() ?: rates[hour]
+                                        viewModel.editingBasalRates = newRates
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !viewModel.isSavingBasalProfiles && !viewModel.isLoadingBasalProfile,
+                                    singleLine = true
+                                )
+                            }
+                        }
                     }
                 }
             }
         },
         confirmButton = {
             Button(
-                onClick = { viewModel.saveBasalProfile() },
-                enabled = !viewModel.isSavingBasalProfile
+                onClick = { viewModel.saveBasalProfiles() },
+                enabled = !viewModel.isSavingBasalProfiles && !viewModel.isLoadingBasalProfile
             ) {
-                if (viewModel.isSavingBasalProfile) {
+                if (viewModel.isSavingBasalProfiles) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
                 } else {
                     Text("Save Profile")
@@ -953,8 +953,100 @@ private fun BasalProfileDialog(viewModel: UserViewModel) {
         },
         dismissButton = {
             TextButton(
-                onClick = { viewModel.showBasalProfileDialog = false },
-                enabled = !viewModel.isSavingBasalProfile
+                onClick = { viewModel.showBasalProfilesDialog = false },
+                enabled = !viewModel.isSavingBasalProfiles && !viewModel.isLoadingBasalProfile
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun BolusProfileDialog(viewModel: UserViewModel) {
+    val cirValues = viewModel.editingCirValues ?: return
+    val cfValues = viewModel.editingCfValues ?: return
+
+    var selectedTab by remember { mutableStateOf(0) } // 0: CIR, 1: CF
+
+    AlertDialog(
+        onDismissRequest = { if (!viewModel.isSavingBolusProfile) viewModel.showBolusProfileDialog = false },
+        title = {
+            Column {
+                Text("Edit Bolus Profile")
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    listOf("CIR (IC)", "CF (ISF)").forEachIndexed { index, label ->
+                        OutlinedButton(
+                            onClick = { selectedTab = index },
+                            modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
+                            colors = if (selectedTab == index)
+                                ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                                else ButtonDefaults.outlinedButtonColors(),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(label)
+                        }
+                    }
+                }
+            }
+        },
+        text = {
+            Column {
+                val label = when (selectedTab) {
+                    0 -> "Carbs per Unit (g/U)"
+                    else -> if (viewModel.userOptions?.units == DanaGlucoseUnits.MGDL) "mg/dL per Unit" else "mmol/L per Unit"
+                }
+                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                Spacer(Modifier.height(8.dp))
+
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.height(400.dp)) {
+                    items(24) { hour ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("%02d:00".format(hour), modifier = Modifier.width(60.dp))
+                            val value = when (selectedTab) {
+                                0 -> cirValues[hour].toInt().toString()
+                                else -> if (viewModel.userOptions?.units == DanaGlucoseUnits.MGDL) cfValues[hour].toInt().toString() else cfValues[hour].toString()
+                            }
+                            OutlinedTextField(
+                                value = value,
+                                onValueChange = { input ->
+                                    if (selectedTab == 0) {
+                                        val newCir = cirValues.toMutableList()
+                                        newCir[hour] = input.toDoubleOrNull() ?: cirValues[hour]
+                                        viewModel.editingCirValues = newCir
+                                    } else {
+                                        val newCf = cfValues.toMutableList()
+                                        newCf[hour] = input.toDoubleOrNull() ?: cfValues[hour]
+                                        viewModel.editingCfValues = newCf
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !viewModel.isSavingBolusProfile,
+                                singleLine = true
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { viewModel.saveBolusProfile() },
+                enabled = !viewModel.isSavingBolusProfile
+            ) {
+                if (viewModel.isSavingBolusProfile) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                } else {
+                    Text("Save All")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { viewModel.showBolusProfileDialog = false },
+                enabled = !viewModel.isSavingBolusProfile
             ) {
                 Text("Cancel")
             }
@@ -1214,4 +1306,51 @@ private fun ExtendedBolusDialog(viewModel: UserViewModel) {
             }
         }
     )
+}
+
+@Composable
+private fun PumpInfoCard(
+    pumpTimeInfo: OptionPumpUtcAndTimeZoneResponse?,
+    userOptions: OptionUserOptionsResponse?,
+    sessionReady: Boolean,
+    activeCommand: String?,
+    onSyncTime: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Pump Information",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(8.dp))
+
+            val pumpTimeLocal = pumpTimeInfo?.let { it.pumpUtcTime.plusHours(it.zoneOffsetHours.toLong()) }
+            InfoRow("Pump Time", pumpTimeLocal?.toString()?.replace("T", " ")?.take(16) ?: "--")
+            InfoRow("Time Zone Offset", pumpTimeInfo?.let { "UTC%+d".format(it.zoneOffsetHours) } ?: "--")
+
+            if (userOptions != null) {
+                InfoRow("Languages", userOptions.selectableLanguages.size.toString())
+            }
+
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = onSyncTime,
+                enabled = sessionReady && activeCommand == null,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (activeCommand == "Syncing Time") {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(8.dp))
+                Text("Sync Pump Time with Phone")
+            }
+        }
+    }
 }

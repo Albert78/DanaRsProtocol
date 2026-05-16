@@ -27,6 +27,17 @@ data class BasalRateProfileResponse(
 ) : DanaRsResponse
 
 /**
+ * 24 hourly rates for a specific basal profile.
+ */
+data class BasalProfileBasalRateResponse(
+    override val status: PumpStatus,
+    /**
+     * List of 24 hourly basal rates in Units per Hour (U/h).
+     */
+    val hourlyRatesUnits: List<Double>,
+) : DanaRsResponse
+
+/**
  * The one-byte active profile index reported by the pump.
  */
 data class BasalProfileNumberResponse(
