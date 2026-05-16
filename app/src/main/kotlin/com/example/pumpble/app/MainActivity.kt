@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeveloperMode
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,19 +35,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             val viewModel: PumpViewModel = viewModel()
             viewModel.permissionsGranted = hasBlePermissions()
-            
-            PumpConsole(viewModel)
+
+            MainApp(viewModel)
         }
     }
 
     @Composable
-    private fun PumpConsole(viewModel: PumpViewModel) {
+    private fun MainApp(viewModel: PumpViewModel) {
         val permissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions(),
         ) {
@@ -78,6 +78,12 @@ class MainActivity : ComponentActivity() {
                             icon = { Icon(Icons.Default.SettingsRemote, contentDescription = null) },
                             label = { Text("User Control") },
                         )
+                        NavigationBarItem(
+                            selected = viewModel.currentScreen == AppScreen.LOGS,
+                            onClick = { viewModel.currentScreen = AppScreen.LOGS },
+                            icon = { Icon(Icons.Default.History, contentDescription = null) },
+                            label = { Text("Logs") },
+                        )
                     }
                 },
             ) { paddingValues ->
@@ -92,39 +98,11 @@ class MainActivity : ComponentActivity() {
                             viewModel = viewModel,
                             onPermissionRequest = { permissionLauncher.launch(BLE_PERMISSIONS) }
                         )
-                        AppScreen.USER_CONTROL -> UserControlView()
+                        AppScreen.USER_CONTROL -> UserControlView(viewModel = viewModel)
+                        AppScreen.LOGS -> LogScreen(viewModel = viewModel)
                     }
                 }
             }
-        }
-    }
-
-    @Composable
-    private fun UserControlView() {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(
-                Icons.Default.SettingsRemote,
-                contentDescription = null,
-                modifier = Modifier.height(64.dp).width(64.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "User Control Screen",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                "Hier wird die Nutzeroberfläche entstehen.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.secondary,
-            )
         }
     }
 

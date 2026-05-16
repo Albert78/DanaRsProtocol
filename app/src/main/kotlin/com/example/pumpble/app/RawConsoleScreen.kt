@@ -67,7 +67,6 @@ fun RawConsoleView(
         item { SessionSection(viewModel) }
         item { ReadCommandSection(viewModel) }
         item { ControlCommandSection(viewModel) }
-        item { LogSection(viewModel.logLines) }
     }
 }
 
@@ -75,7 +74,7 @@ fun RawConsoleView(
 private fun Header(connectionState: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = "Dana-i Test Pump",
+            text = "Dana-i Pump Console",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.SemiBold,
         )
@@ -308,16 +307,6 @@ private fun ControlCommandSection(viewModel: PumpViewModel) {
                     optionSetPumpUtcAndTimeZone(System.currentTimeMillis(), currentOffsetHours)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun LogSection(logLines: List<String>) {
-    SectionTitle("Log")
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        logLines.take(80).forEach { line ->
-            Text(line, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

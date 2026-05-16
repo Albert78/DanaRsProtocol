@@ -22,6 +22,12 @@ import com.example.pumpble.dana.DanaPumpClientFactory
 import com.example.pumpble.dana.commands.DanaRsAckResponse
 import com.example.pumpble.dana.commands.DanaRsCommands
 import com.example.pumpble.dana.commands.DanaRsRawResponse
+import com.example.pumpble.dana.commands.basal.BasalRateProfileResponse
+import com.example.pumpble.dana.commands.bolus.BolusOptionResponse
+import com.example.pumpble.dana.commands.bolus.BolusStepBolusInformationResponse
+import com.example.pumpble.dana.commands.general.GeneralInitialScreenInformationResponse
+import com.example.pumpble.dana.commands.options.OptionPumpUtcAndTimeZoneResponse
+import com.example.pumpble.dana.commands.options.OptionUserOptionsResponse
 import com.example.pumpble.dana.protocol.DanaRsHandshake
 import com.example.pumpble.dana.protocol.DanaRsHandshakeResult
 import com.example.pumpble.dana.protocol.DanaRsHandshakeState
@@ -67,6 +73,15 @@ class PumpViewModel(application: Application) : AndroidViewModel(application) {
     var bolusUnits by mutableStateOf("0.10")
     var extendedBolusUnits by mutableStateOf("0.10")
     var extendedBolusHalfHours by mutableStateOf("1")
+
+    // Decoded Pump State
+    var lastSyncTime by mutableStateOf<Long?>(null)
+    var pumpStatus by mutableStateOf<GeneralInitialScreenInformationResponse?>(null)
+    var userOptions by mutableStateOf<OptionUserOptionsResponse?>(null)
+    var bolusOptions by mutableStateOf<BolusOptionResponse?>(null)
+    var stepBolusInfo by mutableStateOf<BolusStepBolusInformationResponse?>(null)
+    var basalRateInfo by mutableStateOf<BasalRateProfileResponse?>(null)
+    var pumpTimeInfo by mutableStateOf<OptionPumpUtcAndTimeZoneResponse?>(null)
 
     private var transport by mutableStateOf<AndroidBleTransport?>(null)
     private var packetCodec by mutableStateOf<DanaRsPacketCodec?>(null)
@@ -306,6 +321,43 @@ class PumpViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun refreshAllStatus() {
+        val client = danaClient ?: return appendLog("Not connected")
+        if (!sessionReady) return appendLog("Handshake required")
+
+        viewModelScope.launch {
+            try {
+                activeCommand = "Syncing Status"
+                appendLog("Refreshing pump status...")
+
+                // 1. Initial Screen Info (Battery, Reservoir, current Basal)
+                pumpStatus = client.client.execute(commands.generalInitialScreenInformation())
+                
+                // 2. Basal Rate
+                basalRateInfo = client.client.execute(commands.basalGetBasalRate())
+
+                // 3. User Options
+                userOptions = client.client.execute(commands.optionGetUserOption())
+
+                // 4. Bolus Options
+                bolusOptions = client.client.execute(commands.bolusGetBolusOption())
+
+                // 5. Step Bolus Info
+                stepBolusInfo = client.client.execute(commands.bolusGetStepBolusInformation())
+                
+                // 6. Pump Time
+                pumpTimeInfo = client.client.execute(commands.optionGetPumpUtcAndTimeZone())
+
+                lastSyncTime = System.currentTimeMillis()
+                appendLog("Sync successful")
+            } catch (error: Throwable) {
+                appendLog("Sync failed: ${error.message}")
+            } finally {
+                activeCommand = null
+            }
+        }
+    }
+
     fun appendLog(message: String) {
         val time = LOG_TIME_FORMAT.format(Date())
         logLines.add(0, "$time  $message")
@@ -379,4 +431,5 @@ data class DiscoveredPump(
 enum class AppScreen {
     RAW_CONSOLE,
     USER_CONTROL,
+    LOGS,
 }
