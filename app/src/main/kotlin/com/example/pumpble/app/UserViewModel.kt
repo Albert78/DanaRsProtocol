@@ -1,8 +1,12 @@
 package com.example.pumpble.app
 
 import android.app.Application
+import android.bluetooth.BluetoothManager
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 import android.content.Context
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -13,10 +17,11 @@ import com.example.pumpble.dana.commands.options.DanaRsUserOptions
 import kotlinx.coroutines.launch
 
 class UserViewModel(application: Application) : AndroidViewModel(application) {
-    
+    private val bluetoothManager = application.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+
     // Bind to PumpManager
     val connectionState get() = PumpManager.connectionState
-    val selectedDevice get() = PumpManager.selectedDevice
+    var selectedDevice by PumpManager::selectedDevice
     val sessionReady get() = PumpManager.sessionReady
     val lastSyncTime get() = PumpManager.lastSyncTime
     val pumpStatus get() = PumpManager.pumpStatus
@@ -27,6 +32,11 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     val pumpTimeInfo get() = PumpManager.pumpTimeInfo
     
     var activeCommand by mutableStateOf<String?>(null)
+    
+    // Scan logic for User Screen
+    val discoveredDevices = mutableStateListOf<DiscoveredPump>()
+    var isScanning by mutableStateOf(false)
+    var isSearchingLastDevice by mutableStateOf(false)
 
     // Dialog States
     var showBolusDialog by mutableStateOf(false)
@@ -49,6 +59,69 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     var editingBasalRates by mutableStateOf<List<Double>?>(null)
     var isSavingBasalProfile by mutableStateOf(false)
 
+    @android.annotation.SuppressLint("MissingPermission")
+    fun startDiscovery() {
+        val scanner = bluetoothManager.adapter?.bluetoothLeScanner ?: return
+        discoveredDevices.clear()
+        isScanning = true
+        
+        val lastAddress = PumpManager.getLastStoredAddress()
+        isSearchingLastDevice = lastAddress != null && selectedDevice == null
+
+        scanner.startScan(scanCallback)
+        
+        // Auto-stop scan after some time
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(15000)
+            stopDiscovery()
+        }
+    }
+
+    @android.annotation.SuppressLint("MissingPermission")
+    fun stopDiscovery() {
+        if (!isScanning) return
+        bluetoothManager.adapter?.bluetoothLeScanner?.stopScan(scanCallback)
+        isScanning = false
+        isSearchingLastDevice = false
+    }
+
+    private val scanCallback = object : ScanCallback() {
+        @android.annotation.SuppressLint("MissingPermission")
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            val device = result.device ?: return
+            val name = device.name.orEmpty()
+            
+            // Dana pumps always have a 10-character serial number as their name
+            if (name.length != 10) return
+
+            val item = DiscoveredPump(
+                name = name,
+                address = device.address,
+                rssi = result.rssi,
+                device = device,
+            )
+            
+            val index = discoveredDevices.indexOfFirst { it.address == item.address }
+            if (index >= 0) discoveredDevices[index] = item else discoveredDevices += item
+            
+            // Auto-select last device
+            if (isSearchingLastDevice && item.address == PumpManager.getLastStoredAddress()) {
+                selectedDevice = item
+                isSearchingLastDevice = false
+            }
+        }
+    }
+
+    fun toggleConnection(context: Context) {
+        if (sessionReady) {
+            viewModelScope.launch {
+                PumpManager.disconnect()
+            }
+        } else {
+            connectAndHandshake(context)
+        }
+    }
+
     fun connectAndHandshake(context: Context) {
         val pump = selectedDevice ?: return
         viewModelScope.launch {
@@ -67,8 +140,10 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     LogManager.log("Handshake failed: Device name not 10 chars")
                 }
+            } catch (error: ConnectionLostException) {
+                LogManager.log("Connection lost during setup")
             } catch (error: Throwable) {
-                LogManager.log("Connection failed: ${error.message}")
+                LogManager.log("Setup failed: ${error.message}")
             } finally {
                 activeCommand = null
             }

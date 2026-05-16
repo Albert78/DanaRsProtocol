@@ -24,6 +24,7 @@ import com.example.pumpble.dana.protocol.DanaRsHandshakeState
 import com.example.pumpble.dana.protocol.DanaRsPacketCodec
 import com.example.pumpble.dana.protocol.DanaRsPairingSecrets
 import com.example.pumpble.transport.AndroidBleTransport
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,11 +33,17 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
+class ConnectionLostException(message: String) : Exception(message)
+
 object PumpManager {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val connectionEvents = MutableSharedFlow<Throwable>(extraBufferCapacity = 1)
+    private var prefs: android.content.SharedPreferences? = null
 
     val commands = DanaRsCommands()
 
@@ -61,15 +68,32 @@ object PumpManager {
     private var _packetCodec by mutableStateOf<DanaRsPacketCodec?>(null)
     private var connectionJob: Job? = null
 
-    fun initialize() {
-        // Global initialization if needed
+    fun initialize(context: Context) {
+        prefs = context.getSharedPreferences("pump_prefs", Context.MODE_PRIVATE)
+        val lastAddress = prefs?.getString("last_address", null)
+        val lastName = prefs?.getString("last_name", null)
+        
+        // Note: We can't recreate the BluetoothDevice object here without a scan or known address
+        // but we can store the strings to help the UI.
     }
+
+    private fun saveLastDevice(pump: DiscoveredPump) {
+        prefs?.edit()?.apply {
+            putString("last_address", pump.address)
+            putString("last_name", pump.name)
+            apply()
+        }
+    }
+    
+    fun getLastStoredAddress(): String? = prefs?.getString("last_address", null)
+    fun getLastStoredName(): String? = prefs?.getString("last_name", null)
 
     @SuppressLint("MissingPermission")
     suspend fun connect(context: Context, pump: DiscoveredPump, txUuid: String, rxUuid: String) {
         try {
             disconnect()
             selectedDevice = pump
+            saveLastDevice(pump)
             connectionState = "Connecting to ${pump.name.ifBlank { pump.address }}"
 
             val codec = DanaRsPacketCodec()
@@ -89,7 +113,9 @@ object PumpManager {
             connectionJob = scope.launch {
                 connectedTransport.state.collect { state ->
                     if (state is AndroidBleTransport.TransportState.Disconnected) {
-                        handleDisconnect(state.cause?.message)
+                        val message = state.cause?.message ?: "Link lost"
+                        connectionEvents.tryEmit(ConnectionLostException(message))
+                        handleDisconnect(message)
                     }
                 }
             }
@@ -127,7 +153,7 @@ object PumpManager {
     }
 
     suspend fun runHandshake(deviceName: String, ble5Key: String?): DanaRsHandshakeState {
-        val currentTransport = _transport ?: error("Not connected")
+        val currentTransport = _transport ?: throw ConnectionLostException("Not connected")
         val currentCodec = _packetCodec ?: error("Codec missing")
         
         if (deviceName.length != 10) error("Device name must be 10 characters")
@@ -143,41 +169,56 @@ object PumpManager {
         LogManager.log("Starting handshake for $deviceName...")
         
         return withTimeout(45.seconds) {
-            var handshakeState: DanaRsHandshakeState? = null
-            val flowJob = launch {
-                try {
-                    currentTransport.notifications.collect { bytes ->
-                        val frames = currentCodec.decodeFrames(bytes)
-                        for (frame in frames) {
-                            when (val result = handshake.onFrame(frame)) {
-                                is DanaRsHandshakeResult.SendNext -> {
-                                    currentTransport.write(result.bytes)
-                                }
-                                is DanaRsHandshakeResult.WaitingForPairing -> {
-                                    LogManager.log("WAITING FOR PUMP PAIRING - CONFIRM ON PUMP SCREEN")
-                                }
-                                is DanaRsHandshakeResult.Connected -> {
-                                    handshakeState = result.state
-                                    cancel("Handshake complete")
-                                }
-                                is DanaRsHandshakeResult.Failed -> {
-                                    cancel("Handshake failed: ${result.reason}")
+            val deferredResult = CompletableDeferred<DanaRsHandshakeState>()
+            
+            kotlinx.coroutines.coroutineScope {
+                val handshakeJob = launch {
+                    try {
+                        currentTransport.notifications.collect { bytes ->
+                            val frames = currentCodec.decodeFrames(bytes)
+                            for (frame in frames) {
+                                when (val res = handshake.onFrame(frame)) {
+                                    is DanaRsHandshakeResult.SendNext -> {
+                                        currentTransport.write(res.bytes)
+                                    }
+                                    is DanaRsHandshakeResult.WaitingForPairing -> {
+                                        LogManager.log("WAITING FOR PUMP PAIRING - CONFIRM ON PUMP SCREEN")
+                                    }
+                                    is DanaRsHandshakeResult.Connected -> {
+                                        deferredResult.complete(res.state)
+                                    }
+                                    is DanaRsHandshakeResult.Failed -> {
+                                        deferredResult.completeExceptionally(Exception("Handshake failed: ${res.reason}"))
+                                    }
                                 }
                             }
                         }
+                    } catch (e: Exception) {
+                        deferredResult.completeExceptionally(e)
                     }
-                } catch (error: Exception) {
-                    if (error.message?.startsWith("Handshake complete") != true) throw error
+                }
+
+                val disconnectWatcher = launch {
+                    val error = connectionEvents.first()
+                    deferredResult.completeExceptionally(error)
+                }
+
+                try {
+                    delay(500)
+                    currentTransport.write(handshake.start(deviceName))
+                    
+                    // Wait for result or error
+                    val result = deferredResult.await()
+                    
+                    handshakeJob.cancel()
+                    disconnectWatcher.cancel()
+                    result
+                } catch (e: Exception) {
+                    handshakeJob.cancel()
+                    disconnectWatcher.cancel()
+                    throw e
                 }
             }
-            try {
-                delay(500)
-                currentTransport.write(handshake.start(deviceName))
-                flowJob.join()
-            } catch (error: Exception) {
-                if (error.message?.startsWith("Handshake complete") != true) throw error
-            }
-            handshakeState ?: error("Handshake did not complete")
         }
     }
 
@@ -189,8 +230,26 @@ object PumpManager {
     }
 
     suspend fun <R : PumpResponse> execute(command: PumpCommand<R>): R {
-        val client = danaClient ?: error("Not connected")
-        return client.client.execute(command, timeout = 20.seconds)
+        val client = danaClient ?: throw ConnectionLostException("Not connected")
+        
+        // Race between command execution and connection loss
+        return kotlinx.coroutines.coroutineScope {
+            val execution = launch { /* handled by withTimeout/execute below */ }
+            val disconnectWatcher = launch {
+                val error = connectionEvents.first()
+                this@coroutineScope.cancel("Connection lost during command", error)
+            }
+            
+            try {
+                val result = client.client.execute(command, timeout = 20.seconds)
+                disconnectWatcher.cancel()
+                result
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e.cause ?: e
+            } finally {
+                disconnectWatcher.cancel()
+            }
+        }
     }
 
     suspend fun <C : PumpResponse, R> executeStream(command: PumpStreamCommand<C, R>): R {

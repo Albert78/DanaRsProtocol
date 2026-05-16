@@ -51,6 +51,13 @@ import java.util.Date
 
 @Composable
 fun UserControlView(viewModel: UserViewModel) {
+    // Auto-start discovery if nothing is selected
+    androidx.compose.runtime.LaunchedEffect(viewModel.selectedDevice) {
+        if (viewModel.selectedDevice == null && !viewModel.isScanning) {
+            viewModel.startDiscovery()
+        }
+    }
+
     if (viewModel.showBolusDialog) {
         BolusDialog(viewModel)
     }
@@ -76,6 +83,12 @@ fun UserControlView(viewModel: UserViewModel) {
             StatusDashboard(viewModel)
         }
 
+        if (viewModel.selectedDevice == null && !viewModel.sessionReady) {
+            item {
+                DeviceSelectionCard(viewModel)
+            }
+        }
+
         if (viewModel.sessionReady) {
             item {
                 BasalCard(viewModel)
@@ -89,36 +102,14 @@ fun UserControlView(viewModel: UserViewModel) {
             item {
                 PumpInfoCard(viewModel)
             }
-        } else {
-            item {
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Not Connected",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Text(
-                            "Please go to Raw Console to connect and perform handshake first.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                }
-            }
         }
     }
 }
 
 @Composable
 private fun StatusDashboard(viewModel: UserViewModel) {
+    val context = LocalContext.current
+    
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -128,47 +119,55 @@ private fun StatusDashboard(viewModel: UserViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = viewModel.selectedDevice?.name ?: "No Device Selected",
+                        text = viewModel.selectedDevice?.name ?: (PumpManager.getLastStoredName() ?: "No Device Selected"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     
-                    if (viewModel.selectedDevice != null && !viewModel.sessionReady) {
-                        val context = LocalContext.current
-                        TextButton(
-                            onClick = { viewModel.connectAndHandshake(context) },
-                            contentPadding = PaddingValues(0.dp),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            if (viewModel.activeCommand == "Connecting" || viewModel.activeCommand == "Handshake") {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Connecting...", style = MaterialTheme.typography.labelLarge)
-                            } else {
-                                Text("Connect & Handshake", style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
+                    if (viewModel.selectedDevice == null && viewModel.isSearchingLastDevice) {
+                        Text("Searching for last pump...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                     }
                 }
                 
-                Button(
-                    onClick = { viewModel.refreshAllStatus() },
-                    enabled = viewModel.sessionReady && viewModel.activeCommand == null,
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    if (viewModel.activeCommand == "Syncing Status") {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Connect / Disconnect Toggle
+                    if (viewModel.selectedDevice != null) {
+                        Button(
+                            onClick = { viewModel.toggleConnection(context) },
+                            enabled = viewModel.activeCommand == null,
+                            colors = if (viewModel.sessionReady) 
+                                ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                                else ButtonDefaults.buttonColors()
+                        ) {
+                            if (viewModel.activeCommand == "Connecting" || viewModel.activeCommand == "Handshake") {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Text(if (viewModel.sessionReady) "Disconnect" else "Connect")
+                            }
+                        }
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Text("Sync")
+
+                    if (viewModel.sessionReady) {
+                        Button(
+                            onClick = { viewModel.refreshAllStatus() },
+                            enabled = viewModel.activeCommand == null,
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            if (viewModel.activeCommand == "Syncing Status") {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Text("Sync")
+                        }
+                    }
                 }
             }
 
@@ -194,6 +193,55 @@ private fun StatusDashboard(viewModel: UserViewModel) {
                         java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(Date(it))
                     } ?: "--"
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceSelectionCard(viewModel: UserViewModel) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Available Pumps", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                if (viewModel.isScanning) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    TextButton(onClick = { viewModel.startDiscovery() }) {
+                        Text("Rescan")
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            
+            if (viewModel.discoveredDevices.isEmpty() && !viewModel.isScanning) {
+                Text("No pumps found. Make sure Bluetooth is on.", style = MaterialTheme.typography.bodySmall)
+            }
+            
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                viewModel.discoveredDevices.forEach { pump ->
+                    Surface(
+                        onClick = { 
+                            viewModel.selectedDevice = pump
+                            viewModel.stopDiscovery()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(pump.name.ifBlank { "Unnamed" }, style = MaterialTheme.typography.bodyLarge)
+                                Text(pump.address, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Text("${pump.rssi} dBm", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
             }
         }
     }

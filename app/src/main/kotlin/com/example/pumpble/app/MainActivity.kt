@@ -33,7 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        PumpManager.initialize()
+        PumpManager.initialize(this)
 
         setContent {
             val rawViewModel: RawViewModel = viewModel()
