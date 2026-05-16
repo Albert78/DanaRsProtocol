@@ -80,6 +80,7 @@ import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
@@ -328,7 +329,12 @@ class MainActivity : ComponentActivity() {
             }
             CommandRow {
                 CommandButton("Pump time", Icons.Filled.Refresh, modifier = Modifier.weight(1f)) {
-                    runCommand("Pump time") { optionGetPumpTime() }
+                    runCommand("Pump time") {
+                        // Doesn't work on Dana-i
+                        //optionGetPumpTime()
+
+                        optionGetPumpUtcAndTimeZone()
+                    }
                 }
                 CommandButton("User options", Icons.Filled.Refresh, modifier = Modifier.weight(1f)) {
                     runCommand("User options") { optionGetUserOption() }
@@ -411,7 +417,13 @@ class MainActivity : ComponentActivity() {
                 }
                 CommandButton("Set pump time", Icons.Filled.Warning, requiresArm = true, modifier = Modifier.weight(1f)) {
                     runCommand("Set pump time", requiresArm = true) {
-                        optionSetPumpTime(System.currentTimeMillis())
+                        // Doesn't seem to work for Dana-i
+                        //optionSetPumpTime(System.currentTimeMillis())
+
+                        val timeZone = TimeZone.getDefault()
+                        val currentOffsetHours = timeZone.getOffset(System.currentTimeMillis()) / 3_600_000
+
+                        optionSetPumpUtcAndTimeZone(System.currentTimeMillis(), currentOffsetHours)
                     }
                 }
             }

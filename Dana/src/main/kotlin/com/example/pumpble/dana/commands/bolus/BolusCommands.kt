@@ -1,15 +1,15 @@
 package com.example.pumpble.dana.commands.bolus
 
-import com.example.pumpble.dana.commands.DanaRsAckPacketCommand
-import com.example.pumpble.dana.commands.DanaRsBolusSpeed
-import com.example.pumpble.dana.commands.DanaRsPacketRegistry
-import com.example.pumpble.dana.commands.DanaRsPacketCommand
+import com.example.pumpble.commands.PumpStatus
 import com.example.pumpble.dana.commands.DANA_UNITS_MGDL
 import com.example.pumpble.dana.commands.DANA_UNITS_MMOL
+import com.example.pumpble.dana.commands.DanaRsAckPacketCommand
+import com.example.pumpble.dana.commands.DanaRsBolusSpeed
+import com.example.pumpble.dana.commands.DanaRsPacketCommand
+import com.example.pumpble.dana.commands.DanaRsPacketRegistry
 import com.example.pumpble.dana.commands.discardRemaining
 import com.example.pumpble.dana.commands.le16
 import com.example.pumpble.dana.commands.requireRemainingAtLeast
-import com.example.pumpble.commands.PumpStatus
 import com.example.pumpble.protocol.ByteReader
 import com.example.pumpble.protocol.ByteWriter
 import java.time.LocalTime
@@ -134,7 +134,7 @@ class BolusGetStepBolusInformationCommand :
             errorCode = errorCode,
             bolusType = bolusType,
             initialBolusAmountUnits = initialBolusAmount,
-            lastBolusTimeOfDay = LocalTime.of(hour, minute),
+            lastBolusTimeOfDayUTC = LocalTime.of(hour, minute),
             lastBolusAmountUnits = lastBolusAmount,
             maxBolusUnits = maxBolus,
             bolusStepUnits = bolusStep,

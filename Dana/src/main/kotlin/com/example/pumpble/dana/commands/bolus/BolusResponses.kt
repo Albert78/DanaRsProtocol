@@ -85,7 +85,11 @@ data class BolusStepBolusInformationResponse(
     val errorCode: Int,
     val bolusType: Int,
     val initialBolusAmountUnits: Double,
-    val lastBolusTimeOfDay: LocalTime,
+
+    /**
+     * Gets the time when the bolus was injected, in UTC time.
+     */
+    val lastBolusTimeOfDayUTC: LocalTime,
     val lastBolusAmountUnits: Double,
     val maxBolusUnits: Double,
     val bolusStepUnits: Double,

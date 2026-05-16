@@ -13,8 +13,8 @@ import com.example.pumpble.dana.commands.basal.BasalSetSuspendOnCommand
 import com.example.pumpble.dana.commands.basal.BasalSetTemporaryBasalCommand
 import com.example.pumpble.dana.commands.bolus.BolusGet24CIRCFArrayCommand
 import com.example.pumpble.dana.commands.bolus.BolusGetBolusOptionCommand
-import com.example.pumpble.dana.commands.bolus.BolusGetCalculationInformationCommand
 import com.example.pumpble.dana.commands.bolus.BolusGetCIRCFArrayCommand
+import com.example.pumpble.dana.commands.bolus.BolusGetCalculationInformationCommand
 import com.example.pumpble.dana.commands.bolus.BolusGetStepBolusInformationCommand
 import com.example.pumpble.dana.commands.bolus.BolusSet24CIRCFArrayCommand
 import com.example.pumpble.dana.commands.bolus.BolusSetBolusOptionCommand
@@ -25,9 +25,9 @@ import com.example.pumpble.dana.commands.bolus.BolusSetStepBolusStopCommand
 import com.example.pumpble.dana.commands.bolus.MissedBolusWindow
 import com.example.pumpble.dana.commands.etc.EtcKeepConnectionCommand
 import com.example.pumpble.dana.commands.etc.EtcSetHistorySaveCommand
-import com.example.pumpble.dana.commands.general.GeneralGetShippingVersionCommand
 import com.example.pumpble.dana.commands.general.GeneralGetPumpCheckCommand
 import com.example.pumpble.dana.commands.general.GeneralGetShippingInformationCommand
+import com.example.pumpble.dana.commands.general.GeneralGetShippingVersionCommand
 import com.example.pumpble.dana.commands.general.GeneralGetUserTimeChangeFlagCommand
 import com.example.pumpble.dana.commands.general.GeneralInitialScreenInformationCommand
 import com.example.pumpble.dana.commands.general.GeneralSetHistoryUploadModeCommand

@@ -1,5 +1,6 @@
 package com.example.pumpble.dana.commands.options
 
+import com.example.pumpble.commands.PumpStatus
 import com.example.pumpble.dana.commands.DanaRsAckPacketCommand
 import com.example.pumpble.dana.commands.DanaRsPacketCommand
 import com.example.pumpble.dana.commands.DanaRsPacketRegistry
@@ -9,11 +10,13 @@ import com.example.pumpble.dana.commands.encodeDanaUtcDateTime
 import com.example.pumpble.dana.commands.readDanaLocalDateTime
 import com.example.pumpble.dana.commands.readSignedInt8
 import com.example.pumpble.dana.commands.requireRemainingAtLeast
-import com.example.pumpble.commands.PumpStatus
 import com.example.pumpble.protocol.ByteReader
 import com.example.pumpble.protocol.ByteWriter
 import java.time.ZoneId
 
+/**
+ * Doesn't seem to work on Dana-i.
+ */
 class OptionGetPumpTimeCommand :
     DanaRsPacketCommand<OptionPumpTimeResponse>(DanaRsPacketRegistry.OPTION_GET_PUMP_TIME) {
     override fun decodePayload(reader: ByteReader): OptionPumpTimeResponse {
@@ -79,6 +82,9 @@ class OptionGetUserOptionCommand :
     }
 }
 
+/**
+ * Doesn't seem to work on Dana-i.
+ */
 class OptionSetPumpTimeCommand(
     private val timeMillis: Long,
     private val zoneId: ZoneId = ZoneId.systemDefault(),
@@ -89,7 +95,14 @@ class OptionSetPumpTimeCommand(
 }
 
 class OptionSetPumpUtcAndTimeZoneCommand(
+    /**
+     * Time in ms since Epoch start.
+     */
     private val timeMillis: Long,
+
+    /**
+     * Current time offset to UTC of the given time, in the time zone which is configured in the pump.
+     */
     private val zoneOffset: Int,
 ) : DanaRsAckPacketCommand(DanaRsPacketRegistry.OPTION_SET_PUMP_UTC_AND_TIME_ZONE) {
     override fun encodePayload(writer: ByteWriter) {

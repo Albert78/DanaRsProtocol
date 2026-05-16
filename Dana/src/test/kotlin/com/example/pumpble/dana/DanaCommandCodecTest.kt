@@ -1,5 +1,6 @@
 package com.example.pumpble.dana
 
+import com.example.pumpble.commands.PumpStatus
 import com.example.pumpble.dana.commands.DanaRsBolusSpeed
 import com.example.pumpble.dana.commands.DanaRsCommands
 import com.example.pumpble.dana.commands.aps.ApsHistoryEndChunk
@@ -10,7 +11,6 @@ import com.example.pumpble.dana.commands.general.DanaRsPumpErrorState
 import com.example.pumpble.dana.commands.history.DanaRsHistoryRecordKind
 import com.example.pumpble.dana.commands.history.HistoryEndResponse
 import com.example.pumpble.dana.commands.history.HistoryRecordResponse
-import com.example.pumpble.commands.PumpStatus
 import com.example.pumpble.protocol.ByteReader
 import com.example.pumpble.protocol.ByteWriter
 import org.junit.Assert.assertArrayEquals
@@ -219,7 +219,7 @@ class DanaCommandCodecTest {
         assertEquals(PumpStatus.OK, response.status)
         assertEquals(2, response.bolusType)
         assertEquals(1.25, response.initialBolusAmountUnits, 0.0001)
-        assertEquals(LocalTime.of(14, 30), response.lastBolusTimeOfDay)
+        assertEquals(LocalTime.of(14, 30), response.lastBolusTimeOfDayUTC)
         assertEquals(0.5, response.lastBolusAmountUnits, 0.0001)
         assertEquals(5.0, response.maxBolusUnits, 0.0001)
         assertEquals(0.05, response.bolusStepUnits, 0.0001)
