@@ -18,13 +18,20 @@ import com.example.pumpble.dana.commands.bolus.BolusStepBolusInformationResponse
 import com.example.pumpble.dana.commands.general.GeneralInitialScreenInformationResponse
 import com.example.pumpble.dana.commands.options.OptionPumpUtcAndTimeZoneResponse
 import com.example.pumpble.dana.commands.options.OptionUserOptionsResponse
+import com.example.pumpble.dana.protocol.DanaRsHandshake
+import com.example.pumpble.dana.protocol.DanaRsHandshakeResult
+import com.example.pumpble.dana.protocol.DanaRsHandshakeState
 import com.example.pumpble.dana.protocol.DanaRsPacketCodec
+import com.example.pumpble.dana.protocol.DanaRsPairingSecrets
 import com.example.pumpble.transport.AndroidBleTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
@@ -46,6 +53,9 @@ object PumpManager {
     var stepBolusInfo by mutableStateOf<BolusStepBolusInformationResponse?>(null)
     var basalRateInfo by mutableStateOf<BasalRateProfileResponse?>(null)
     var pumpTimeInfo by mutableStateOf<OptionPumpUtcAndTimeZoneResponse?>(null)
+
+    const val DEFAULT_TX_UUID = "0000fff2-0000-1000-8000-00805f9b34fb"
+    const val DEFAULT_RX_UUID = "0000fff1-0000-1000-8000-00805f9b34fb"
 
     private var _transport by mutableStateOf<AndroidBleTransport?>(null)
     private var _packetCodec by mutableStateOf<DanaRsPacketCodec?>(null)
@@ -114,6 +124,61 @@ object PumpManager {
         }
         connectionJob?.cancel()
         handleDisconnect(null)
+    }
+
+    suspend fun runHandshake(deviceName: String, ble5Key: String?): DanaRsHandshakeState {
+        val currentTransport = _transport ?: error("Not connected")
+        val currentCodec = _packetCodec ?: error("Codec missing")
+        
+        if (deviceName.length != 10) error("Device name must be 10 characters")
+
+        currentCodec.reset()
+        val handshake = DanaRsHandshake(
+            codec = currentCodec,
+            secrets = DanaRsPairingSecrets(
+                ble5PairingKey = ble5Key?.trim()?.ifBlank { null },
+            ),
+        )
+        
+        LogManager.log("Starting handshake for $deviceName...")
+        
+        return withTimeout(45.seconds) {
+            var handshakeState: DanaRsHandshakeState? = null
+            val flowJob = launch {
+                try {
+                    currentTransport.notifications.collect { bytes ->
+                        val frames = currentCodec.decodeFrames(bytes)
+                        for (frame in frames) {
+                            when (val result = handshake.onFrame(frame)) {
+                                is DanaRsHandshakeResult.SendNext -> {
+                                    currentTransport.write(result.bytes)
+                                }
+                                is DanaRsHandshakeResult.WaitingForPairing -> {
+                                    LogManager.log("WAITING FOR PUMP PAIRING - CONFIRM ON PUMP SCREEN")
+                                }
+                                is DanaRsHandshakeResult.Connected -> {
+                                    handshakeState = result.state
+                                    cancel("Handshake complete")
+                                }
+                                is DanaRsHandshakeResult.Failed -> {
+                                    cancel("Handshake failed: ${result.reason}")
+                                }
+                            }
+                        }
+                    }
+                } catch (error: Exception) {
+                    if (error.message?.startsWith("Handshake complete") != true) throw error
+                }
+            }
+            try {
+                delay(500)
+                currentTransport.write(handshake.start(deviceName))
+                flowJob.join()
+            } catch (error: Exception) {
+                if (error.message?.startsWith("Handshake complete") != true) throw error
+            }
+            handshakeState ?: error("Handshake did not complete")
+        }
     }
 
     fun setSessionReady(ready: Boolean, info: String? = null) {

@@ -17,15 +17,7 @@ import com.example.pumpble.commands.PumpResponse
 import com.example.pumpble.commands.PumpStreamCommand
 import com.example.pumpble.dana.commands.DanaRsAckResponse
 import com.example.pumpble.dana.commands.DanaRsRawResponse
-import com.example.pumpble.dana.protocol.DanaRsHandshake
-import com.example.pumpble.dana.protocol.DanaRsHandshakeResult
-import com.example.pumpble.dana.protocol.DanaRsHandshakeState
-import com.example.pumpble.dana.protocol.DanaRsPairingSecrets
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
-import kotlin.time.Duration.Companion.seconds
 
 class RawViewModel(application: Application) : AndroidViewModel(application) {
     private val bluetoothManager = application.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -38,8 +30,8 @@ class RawViewModel(application: Application) : AndroidViewModel(application) {
     var activeCommand by mutableStateOf<String?>(null)
     var controlArmed by mutableStateOf(false)
 
-    var txUuidText by mutableStateOf(DEFAULT_TX_UUID)
-    var rxUuidText by mutableStateOf(DEFAULT_RX_UUID)
+    var txUuidText by mutableStateOf(PumpManager.DEFAULT_TX_UUID)
+    var rxUuidText by mutableStateOf(PumpManager.DEFAULT_RX_UUID)
     var deviceNameText by mutableStateOf("")
     var ble5PairingKey by mutableStateOf("")
 
@@ -107,10 +99,7 @@ class RawViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun runHandshake() {
-        val transport = PumpManager.getTransport() ?: return LogManager.log("Not connected")
-        val codec = PumpManager.getPacketCodec() ?: return LogManager.log("Codec missing")
         val deviceName = deviceNameText.trim()
-
         if (deviceName.length != 10) {
             LogManager.log("Device name must contain exactly 10 characters")
             return
@@ -119,54 +108,8 @@ class RawViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 activeCommand = "Handshake"
-                codec.reset()
-                val handshake = DanaRsHandshake(
-                    codec = codec,
-                    secrets = DanaRsPairingSecrets(
-                        ble5PairingKey = ble5PairingKey.trim().ifBlank { null },
-                    ),
-                )
-                LogManager.log("Starting handshake for $deviceName...")
-
-                val state = withTimeout(45.seconds) {
-                    var handshakeState: DanaRsHandshakeState? = null
-                    val flowJob = launch {
-                        try {
-                            transport.notifications.collect { bytes ->
-                                val frames = codec.decodeFrames(bytes)
-                                for (frame in frames) {
-                                    when (val result = handshake.onFrame(frame)) {
-                                        is DanaRsHandshakeResult.SendNext -> {
-                                            transport.write(result.bytes)
-                                        }
-                                        is DanaRsHandshakeResult.WaitingForPairing -> {
-                                            LogManager.log("WAITING FOR PUMP PAIRING - CONFIRM ON PUMP SCREEN")
-                                        }
-                                        is DanaRsHandshakeResult.Connected -> {
-                                            handshakeState = result.state
-                                            cancel("Handshake complete")
-                                        }
-                                        is DanaRsHandshakeResult.Failed -> {
-                                            LogManager.log("Handshake step failed: ${result.reason}")
-                                            cancel("Handshake failed: ${result.reason}")
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (error: Exception) {
-                            if (error.message?.startsWith("Handshake complete") != true) throw error
-                        }
-                    }
-                    try {
-                        delay(500)
-                        transport.write(handshake.start(deviceName))
-                        flowJob.join()
-                    } catch (error: Exception) {
-                        if (error.message?.startsWith("Handshake complete") != true) throw error
-                    }
-                    handshakeState ?: error("Handshake did not complete")
-                }
-
+                val state = PumpManager.runHandshake(deviceName, ble5PairingKey)
+                
                 val modelInfo = if (state.hardwareModel != null) " (Model ${state.hardwareModel}, Prot. v${state.protocol})" else ""
                 PumpManager.setSessionReady(true, modelInfo)
                 LogManager.log("Handshake successful: ${state.encryptionType}$modelInfo")
@@ -261,7 +204,6 @@ class RawViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     companion object {
-        const val DEFAULT_TX_UUID = "0000fff2-0000-1000-8000-00805f9b34fb"
-        const val DEFAULT_RX_UUID = "0000fff1-0000-1000-8000-00805f9b34fb"
+        // Constants moved to PumpManager
     }
 }

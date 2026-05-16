@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -133,6 +134,23 @@ private fun StatusDashboard(viewModel: UserViewModel) {
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
+                    
+                    if (viewModel.selectedDevice != null && !viewModel.sessionReady) {
+                        val context = LocalContext.current
+                        TextButton(
+                            onClick = { viewModel.connectAndHandshake(context) },
+                            contentPadding = PaddingValues(0.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            if (viewModel.activeCommand == "Connecting" || viewModel.activeCommand == "Handshake") {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Connecting...", style = MaterialTheme.typography.labelLarge)
+                            } else {
+                                Text("Connect & Handshake", style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
                 }
                 
                 Button(
@@ -316,6 +334,21 @@ private fun PumpInfoCard(viewModel: UserViewModel) {
             // but we can show the number of selectable languages as a proxy or omit it.
             if (viewModel.userOptions != null) {
                 InfoRow("Languages", viewModel.userOptions?.selectableLanguages?.size?.toString() ?: "--")
+            }
+            
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = { viewModel.syncPumpTime() },
+                enabled = viewModel.sessionReady && viewModel.activeCommand == null,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (viewModel.activeCommand == "Syncing Time") {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(8.dp))
+                Text("Sync Pump Time with Phone")
             }
         }
     }

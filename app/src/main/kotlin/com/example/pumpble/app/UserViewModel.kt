@@ -1,6 +1,7 @@
 package com.example.pumpble.app
 
 import android.app.Application
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -47,6 +48,55 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     var showBasalProfileDialog by mutableStateOf(false)
     var editingBasalRates by mutableStateOf<List<Double>?>(null)
     var isSavingBasalProfile by mutableStateOf(false)
+
+    fun connectAndHandshake(context: Context) {
+        val pump = selectedDevice ?: return
+        viewModelScope.launch {
+            try {
+                activeCommand = "Connecting"
+                PumpManager.connect(context, pump, PumpManager.DEFAULT_TX_UUID, PumpManager.DEFAULT_RX_UUID)
+                
+                activeCommand = "Handshake"
+                val deviceName = pump.name.ifBlank { "" }
+                if (deviceName.length == 10) {
+                    val state = PumpManager.runHandshake(deviceName, null)
+                    val modelInfo = if (state.hardwareModel != null) " (Model ${state.hardwareModel}, Prot. v${state.protocol})" else ""
+                    PumpManager.setSessionReady(true, modelInfo)
+                    LogManager.log("Handshake successful")
+                    refreshAllStatus()
+                } else {
+                    LogManager.log("Handshake failed: Device name not 10 chars")
+                }
+            } catch (error: Throwable) {
+                LogManager.log("Connection failed: ${error.message}")
+            } finally {
+                activeCommand = null
+            }
+        }
+    }
+
+    fun syncPumpTime() {
+        if (!sessionReady) return
+        viewModelScope.launch {
+            try {
+                activeCommand = "Syncing Time"
+                val timeZone = java.util.TimeZone.getDefault()
+                val currentTime = System.currentTimeMillis()
+                val currentOffsetHours = timeZone.getOffset(currentTime) / 3_600_000
+                
+                LogManager.log("Syncing pump time (UTC with offset $currentOffsetHours)...")
+                val response = PumpManager.execute(
+                    PumpManager.commands.optionSetPumpUtcAndTimeZone(currentTime, currentOffsetHours)
+                )
+                LogManager.log("Time sync result: ${response.status}")
+                refreshAllStatus()
+            } catch (error: Throwable) {
+                LogManager.log("Time sync failed: ${error.message}")
+            } finally {
+                activeCommand = null
+            }
+        }
+    }
 
     fun refreshAllStatus() {
         if (!sessionReady) {
