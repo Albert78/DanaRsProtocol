@@ -79,7 +79,7 @@ class DanaRsCommands {
     fun basalSetProfileBasalRate(profileNumber: Int, hourlyRatesUnits: List<Double>) =
         BasalSetProfileBasalRateCommand(profileNumber, hourlyRatesUnits)
 
-    fun apsBasalSetTemporaryBasal(percent: Int) = ApsBasalSetTemporaryBasalCommand(percent)
+    fun apsBasalSetTemporaryBasal(percent: Int) = ApsBasalSetTemporaryBasalCommand.create(percent)
     fun apsHistoryEvents(
         fromMillis: Long,
         zoneId: ZoneId = ZoneId.systemDefault(),

@@ -1,34 +1,41 @@
 package com.example.pumpble.dana.commands.aps
 
+import com.example.pumpble.commands.PumpStatus
+import com.example.pumpble.commands.PumpStreamCommand
 import com.example.pumpble.dana.commands.DanaRsAckPacketCommand
 import com.example.pumpble.dana.commands.DanaRsPacketCommand
 import com.example.pumpble.dana.commands.DanaRsPacketRegistry
 import com.example.pumpble.dana.commands.encodeDanaDateTime
 import com.example.pumpble.dana.commands.encodeDanaHistoryStart
 import com.example.pumpble.dana.commands.le16
-import com.example.pumpble.commands.PumpStatus
-import com.example.pumpble.commands.PumpStreamCommand
 import com.example.pumpble.protocol.ByteReader
-import com.example.pumpble.protocol.ProtocolException
 import com.example.pumpble.protocol.ByteWriter
+import com.example.pumpble.protocol.ProtocolException
 import java.time.DateTimeException
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-class ApsBasalSetTemporaryBasalCommand(percent: Int) :
+enum class ApsBasalDuration(val wireValue: Int) {
+    DURATION_15_MIN(150),
+    DURATION_30_MIN(160)
+}
+
+class ApsBasalSetTemporaryBasalCommand(
+    val ratio: Int,
+    val duration: ApsBasalDuration) :
     DanaRsAckPacketCommand(DanaRsPacketRegistry.APS_BASAL_SET_TEMPORARY_BASAL) {
-    private val ratio = percent.coerceIn(0, 500)
-    private val durationParam = if (percent < 100) PARAM_30_MIN else PARAM_15_MIN
 
     override fun encodePayload(writer: ByteWriter) {
         writer.writeBytes(le16(ratio))
-        writer.writeUInt8(durationParam)
+        writer.writeUInt8(duration.wireValue)
     }
 
-    private companion object {
-        const val PARAM_15_MIN = 150
-        const val PARAM_30_MIN = 160
+    companion object {
+        fun create(percent: Int) = ApsBasalSetTemporaryBasalCommand(
+            ratio = percent.coerceIn(0, 500),
+            duration = if (percent < 100) ApsBasalDuration.DURATION_30_MIN else ApsBasalDuration.DURATION_15_MIN
+        )
     }
 }
 
