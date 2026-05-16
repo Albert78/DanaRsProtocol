@@ -85,6 +85,9 @@ fun UserControlView(viewModel: UserViewModel) {
             item {
                 OptionsCard(viewModel)
             }
+            item {
+                PumpInfoCard(viewModel)
+            }
         } else {
             item {
                 ElevatedCard(
@@ -129,11 +132,6 @@ private fun StatusDashboard(viewModel: UserViewModel) {
                         text = viewModel.selectedDevice?.name ?: "No Device Selected",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = viewModel.connectionState,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
                 
@@ -238,10 +236,13 @@ private fun BolusCard(viewModel: UserViewModel) {
             Spacer(Modifier.height(8.dp))
             
             val lastAmount = viewModel.stepBolusInfo?.lastBolusAmountUnits ?: 0.0
-            val lastTime = viewModel.stepBolusInfo?.lastBolusTimeOfDayUTC
+            val lastTimeUtc = viewModel.stepBolusInfo?.lastBolusTimeOfDayUTC
+            val zoneOffset = viewModel.pumpTimeInfo?.zoneOffsetHours ?: 0
+            
+            val lastTimeLocal = lastTimeUtc?.plusHours(zoneOffset.toLong())
             
             Text(
-                text = "Last: %.2f U".format(lastAmount) + (lastTime?.let { " at $it" } ?: ""),
+                text = "Last: %.2f U".format(lastAmount) + (lastTimeLocal?.let { " at $it" } ?: ""),
                 style = MaterialTheme.typography.bodyMedium
             )
             
@@ -288,6 +289,46 @@ private fun OptionsCard(viewModel: UserViewModel) {
                 viewModel.openBasalProfileDialog() 
             }
         }
+    }
+}
+
+@Composable
+private fun PumpInfoCard(viewModel: UserViewModel) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Pump Information",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(8.dp))
+            
+            val timeInfo = viewModel.pumpTimeInfo
+            val pumpTimeLocal = timeInfo?.let { it.pumpUtcTime.plusHours(it.zoneOffsetHours.toLong()) }
+            InfoRow("Pump Time", pumpTimeLocal?.toString()?.replace("T", " ")?.take(16) ?: "--")
+            InfoRow("Time Zone Offset", timeInfo?.let { "UTC%+d".format(it.zoneOffsetHours) } ?: "--")
+            
+            // Note: HW Model is not in OptionUserOptionsResponse directly, 
+            // but we can show the number of selectable languages as a proxy or omit it.
+            if (viewModel.userOptions != null) {
+                InfoRow("Languages", viewModel.userOptions?.selectableLanguages?.size?.toString() ?: "--")
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
     }
 }
 
