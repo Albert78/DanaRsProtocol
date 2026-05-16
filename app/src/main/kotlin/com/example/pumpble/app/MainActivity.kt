@@ -27,7 +27,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.filled.DeveloperMode
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -36,7 +39,10 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -97,6 +103,7 @@ class MainActivity : ComponentActivity() {
     private var sessionReady by mutableStateOf(false)
     private var activeCommand by mutableStateOf<String?>(null)
     private var controlArmed by mutableStateOf(false)
+    private var currentScreen by mutableStateOf(AppScreen.RAW_CONSOLE)
 
     private var txUuidText by mutableStateOf(DEFAULT_TX_UUID)
     private var rxUuidText by mutableStateOf(DEFAULT_RX_UUID)
@@ -135,12 +142,6 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun PumpConsole() {
-        val permissionLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions(),
-        ) {
-            permissionsGranted = hasBlePermissions()
-        }
-
         MaterialTheme(
             colorScheme = lightColorScheme(
                 primary = Color(0xFF006B5C),
@@ -151,33 +152,100 @@ class MainActivity : ComponentActivity() {
                 surfaceVariant = Color(0xFFE4ECE8),
             ),
         ) {
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(18.dp),
-                ) {
-                    item { Header() }
-                    item {
-                        if (!permissionsGranted) {
-                            Button(
-                                onClick = { permissionLauncher.launch(BLE_PERMISSIONS) },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.BluetoothSearching, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Grant BLE permissions")
-                            }
-                        }
+            Scaffold(
+                bottomBar = {
+                    NavigationBar {
+                        NavigationBarItem(
+                            selected = currentScreen == AppScreen.RAW_CONSOLE,
+                            onClick = { currentScreen = AppScreen.RAW_CONSOLE },
+                            icon = { Icon(Icons.Default.DeveloperMode, contentDescription = null) },
+                            label = { Text("Raw Console") },
+                        )
+                        NavigationBarItem(
+                            selected = currentScreen == AppScreen.USER_CONTROL,
+                            onClick = { currentScreen = AppScreen.USER_CONTROL },
+                            icon = { Icon(Icons.Default.SettingsRemote, contentDescription = null) },
+                            label = { Text("User Control") },
+                        )
                     }
-                    item { GattProfileSection() }
-                    item { DeviceSection() }
-                    item { SessionSection() }
-                    item { ReadCommandSection() }
-                    item { ControlCommandSection() }
-                    item { LogSection() }
+                },
+            ) { paddingValues ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    color = MaterialTheme.colorScheme.surface,
+                ) {
+                    when (currentScreen) {
+                        AppScreen.RAW_CONSOLE -> RawConsoleView()
+                        AppScreen.USER_CONTROL -> UserControlView()
+                    }
                 }
             }
+        }
+    }
+
+    @Composable
+    private fun RawConsoleView() {
+        val permissionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+        ) {
+            permissionsGranted = hasBlePermissions()
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            item { Header() }
+            item {
+                if (!permissionsGranted) {
+                    Button(
+                        onClick = { permissionLauncher.launch(BLE_PERMISSIONS) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.BluetoothSearching, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Grant BLE permissions")
+                    }
+                }
+            }
+            item { GattProfileSection() }
+            item { DeviceSection() }
+            item { SessionSection() }
+            item { ReadCommandSection() }
+            item { ControlCommandSection() }
+            item { LogSection() }
+        }
+    }
+
+    @Composable
+    private fun UserControlView() {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                Icons.Default.SettingsRemote,
+                contentDescription = null,
+                modifier = Modifier.height(64.dp).width(64.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "User Control Screen",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "Hier wird die Nutzeroberfläche entstehen.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.secondary,
+            )
         }
     }
 
@@ -799,6 +867,11 @@ class MainActivity : ComponentActivity() {
                 appendLog("Scan failed: $errorCode")
             }
         }
+    }
+
+    private enum class AppScreen {
+        RAW_CONSOLE,
+        USER_CONTROL,
     }
 
     private companion object {
