@@ -93,6 +93,10 @@ class DanaRsCommands {
 
     fun bolusGet24CIRCFArray() = BolusGet24CIRCFArrayCommand()
     fun bolusGetBolusOption() = BolusGetBolusOptionCommand()
+
+    /**
+     * Doesn't work on Dana-i.
+     */
     fun bolusGetBolusRate() = BolusGetBolusRateCommand()
     fun bolusGetCalculationInformation() = BolusGetCalculationInformationCommand()
     fun bolusGetCIRCFArray() = BolusGetCIRCFArrayCommand()
@@ -118,6 +122,9 @@ class DanaRsCommands {
         missedBolusWindows = missedBolusWindows,
     )
 
+    /**
+     * Doesn't work on Dana-i.
+     */
     fun bolusSetBolusRate(
         maxBolusUnits: Double,
         bolusStepUnits: Double,
@@ -194,9 +201,16 @@ class DanaRsCommands {
     fun historyTemporary(fromMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) =
         HistoryTemporaryCommand(fromMillis, zoneId)
 
+    /**
+     * Doesn't work on Dana-i.
+     */
     fun optionGetPumpTime() = OptionGetPumpTimeCommand()
     fun optionGetPumpUtcAndTimeZone() = OptionGetPumpUtcAndTimeZoneCommand()
     fun optionGetUserOption() = OptionGetUserOptionCommand()
+
+    /**
+     * Doesn't work on Dana-i.
+     */
     fun optionSetPumpTime(timeMillis: Long, zoneId: ZoneId = ZoneId.systemDefault()) =
         OptionSetPumpTimeCommand(timeMillis, zoneId)
 

@@ -226,16 +226,6 @@ class DanaCommandCodecTest {
     }
 
     @Test
-    fun optionPumpTimeDecodesDanaDateTime() {
-        val command = commands.optionGetPumpTime()
-
-        val response = command.decodePayload(ByteReader(byteArrayOf(26, 5, 15, 9, 45, 12)))
-
-        assertEquals(PumpStatus.OK, response.status)
-        assertEquals(LocalDateTime.of(2026, 5, 15, 9, 45, 12), response.pumpTime)
-    }
-
-    @Test
     fun userOptionsDecodeSelectableLanguagesAndTarget() {
         val command = commands.optionGetUserOption()
         val response = command.decodePayload(

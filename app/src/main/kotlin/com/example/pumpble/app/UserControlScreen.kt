@@ -510,6 +510,28 @@ private fun BolusDialog(viewModel: UserViewModel) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline
                 )
+
+                Spacer(Modifier.height(8.dp))
+                Text("Delivery Speed", style = MaterialTheme.typography.labelMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DanaRsBolusSpeed.entries.forEach { speed ->
+                        val selected = viewModel.bolusSpeed == speed
+                        OutlinedButton(
+                            onClick = { viewModel.bolusSpeed = speed },
+                            enabled = !viewModel.isProcessingBolus,
+                            colors = if (selected)
+                                ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                                else ButtonDefaults.outlinedButtonColors(),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                text = speed.name.replace("U", "").replace("_", " "),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -813,62 +835,12 @@ private fun BasalProfileDialog(viewModel: UserViewModel) {
 @Composable
 private fun BolusOptionsDialog(viewModel: UserViewModel) {
     val options = viewModel.editingBolusOptions ?: return
-    val rate = viewModel.editingBolusRate ?: return
 
     AlertDialog(
         onDismissRequest = { if (!viewModel.isSavingBolusOptions) viewModel.showBolusOptionsDialog = false },
         title = { Text("Bolus Options") },
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
-                item {
-                    Text("Limits & Speed", style = MaterialTheme.typography.titleSmall)
-                }
-
-                item {
-                    OutlinedTextField(
-                        value = rate.maxBolusUnits.toString(),
-                        onValueChange = {
-                            val value = it.toDoubleOrNull() ?: rate.maxBolusUnits
-                            viewModel.editingBolusRate = rate.copy(maxBolusUnits = value)
-                        },
-                        label = { Text("Max Bolus (Units)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !viewModel.isSavingBolusOptions
-                    )
-                }
-
-                item {
-                    Column {
-                        Text("Bolus Speed", style = MaterialTheme.typography.bodyLarge)
-                        Text("Delivery time per unit", style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            DanaRsBolusSpeed.entries.forEach { speed ->
-                                val selected = rate.bolusSpeed == speed
-                                OutlinedButton(
-                                    onClick = { viewModel.editingBolusRate = rate.copy(bolusSpeed = speed) },
-                                    enabled = !viewModel.isSavingBolusOptions,
-                                    colors = if (selected)
-                                        ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                                        else ButtonDefaults.outlinedButtonColors(),
-                                    modifier = Modifier.weight(1f),
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    Text(
-                                        text = speed.name.replace("U", "").replace("_", " "),
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    HorizontalDivider(thickness = 0.5.dp)
-                }
-
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {

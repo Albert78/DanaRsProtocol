@@ -205,14 +205,20 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                 PumpManager.basalRateInfo = PumpManager.execute(PumpManager.commands.basalGetBasalRate())
                 PumpManager.userOptions = PumpManager.execute(PumpManager.commands.optionGetUserOption())
                 PumpManager.bolusOptions = PumpManager.execute(PumpManager.commands.bolusGetBolusOption())
-                PumpManager.bolusRate = PumpManager.execute(PumpManager.commands.bolusGetBolusRate())
                 PumpManager.stepBolusInfo = PumpManager.execute(PumpManager.commands.bolusGetStepBolusInformation())
                 PumpManager.pumpTimeInfo = PumpManager.execute(PumpManager.commands.optionGetPumpUtcAndTimeZone())
 
                 PumpManager.lastSyncTime = System.currentTimeMillis()
                 LogManager.log("Sync successful")
+            } catch (error: ConnectionLostException) {
+                LogManager.log("Connection lost during sync")
             } catch (error: Throwable) {
-                LogManager.log("Sync failed: ${error.message}")
+                val message = error.message ?: "Unknown error"
+                if (message.contains("0x08") || message.contains("BUSY") || message.contains("ORDER_DELIVERING")) {
+                    LogManager.log("Sync failed: Pump is BUSY (Delivering Bolus?)")
+                } else {
+                    LogManager.log("Sync failed: $message")
+                }
             } finally {
                 activeCommand = null
             }
@@ -291,13 +297,9 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 activeCommand = "Loading Bolus Options"
                 val optionsResponse = PumpManager.execute(PumpManager.commands.bolusGetBolusOption())
-                val rateResponse = PumpManager.execute(PumpManager.commands.bolusGetBolusRate())
 
                 PumpManager.bolusOptions = optionsResponse
-                PumpManager.bolusRate = rateResponse
-
                 editingBolusOptions = optionsResponse
-                editingBolusRate = rateResponse
                 showBolusOptionsDialog = true
             } catch (e: Exception) {
                 LogManager.log("Failed to fetch bolus options: ${e.message}")
@@ -309,21 +311,11 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveBolusOptions() {
         val options = editingBolusOptions ?: return
-        val rate = editingBolusRate ?: return
 
         viewModelScope.launch {
             try {
                 isSavingBolusOptions = true
                 activeCommand = "Saving Bolus Options"
-
-                LogManager.log("Saving Bolus Rate/Limits...")
-                PumpManager.execute(
-                    PumpManager.commands.bolusSetBolusRate(
-                        maxBolusUnits = rate.maxBolusUnits,
-                        bolusStepUnits = rate.bolusStepUnits,
-                        speed = rate.bolusSpeed
-                    )
-                )
 
                 LogManager.log("Saving Bolus Calculation Options...")
                 val response = PumpManager.execute(
