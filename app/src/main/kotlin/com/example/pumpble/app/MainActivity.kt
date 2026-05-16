@@ -27,6 +27,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,20 +41,33 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        PumpManager.initialize()
+        
         setContent {
-            val viewModel: PumpViewModel = viewModel()
-            viewModel.permissionsGranted = hasBlePermissions()
+            val rawViewModel: RawViewModel = viewModel()
+            val userViewModel: UserViewModel = viewModel()
+            val logViewModel: LogViewModel = viewModel()
+            
+            rawViewModel.permissionsGranted = hasBlePermissions()
 
-            MainApp(viewModel)
+            MainApp(rawViewModel, userViewModel, logViewModel)
         }
     }
 
     @Composable
-    private fun MainApp(viewModel: PumpViewModel) {
+    private fun MainApp(
+        rawViewModel: RawViewModel,
+        userViewModel: UserViewModel,
+        logViewModel: LogViewModel
+    ) {
         val permissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions(),
         ) {
-            viewModel.permissionsGranted = hasBlePermissions()
+            rawViewModel.permissionsGranted = hasBlePermissions()
+        }
+
+        var currentScreen by remember { 
+            mutableStateOf<AppScreen>(AppScreen.RAW_CONSOLE)
         }
 
         MaterialTheme(
@@ -67,20 +84,20 @@ class MainActivity : ComponentActivity() {
                 bottomBar = {
                     NavigationBar {
                         NavigationBarItem(
-                            selected = viewModel.currentScreen == AppScreen.RAW_CONSOLE,
-                            onClick = { viewModel.currentScreen = AppScreen.RAW_CONSOLE },
+                            selected = currentScreen == AppScreen.RAW_CONSOLE,
+                            onClick = { currentScreen = AppScreen.RAW_CONSOLE },
                             icon = { Icon(Icons.Default.DeveloperMode, contentDescription = null) },
                             label = { Text("Raw Console") },
                         )
                         NavigationBarItem(
-                            selected = viewModel.currentScreen == AppScreen.USER_CONTROL,
-                            onClick = { viewModel.currentScreen = AppScreen.USER_CONTROL },
+                            selected = currentScreen == AppScreen.USER_CONTROL,
+                            onClick = { currentScreen = AppScreen.USER_CONTROL },
                             icon = { Icon(Icons.Default.SettingsRemote, contentDescription = null) },
                             label = { Text("User Control") },
                         )
                         NavigationBarItem(
-                            selected = viewModel.currentScreen == AppScreen.LOGS,
-                            onClick = { viewModel.currentScreen = AppScreen.LOGS },
+                            selected = currentScreen == AppScreen.LOGS,
+                            onClick = { currentScreen = AppScreen.LOGS },
                             icon = { Icon(Icons.Default.History, contentDescription = null) },
                             label = { Text("Logs") },
                         )
@@ -93,13 +110,13 @@ class MainActivity : ComponentActivity() {
                         .padding(paddingValues),
                     color = MaterialTheme.colorScheme.surface,
                 ) {
-                    when (viewModel.currentScreen) {
+                    when (currentScreen) {
                         AppScreen.RAW_CONSOLE -> RawConsoleView(
-                            viewModel = viewModel,
+                            viewModel = rawViewModel,
                             onPermissionRequest = { permissionLauncher.launch(BLE_PERMISSIONS) }
                         )
-                        AppScreen.USER_CONTROL -> UserControlView(viewModel = viewModel)
-                        AppScreen.LOGS -> LogScreen(viewModel = viewModel)
+                        AppScreen.USER_CONTROL -> UserControlView(viewModel = userViewModel)
+                        AppScreen.LOGS -> LogScreen(viewModel = logViewModel)
                     }
                 }
             }

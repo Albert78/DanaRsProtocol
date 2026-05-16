@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import java.util.Date
 
 @Composable
-fun UserControlView(viewModel: PumpViewModel) {
+fun UserControlView(viewModel: UserViewModel) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -87,7 +87,7 @@ fun UserControlView(viewModel: PumpViewModel) {
 }
 
 @Composable
-private fun StatusDashboard(viewModel: PumpViewModel) {
+private fun StatusDashboard(viewModel: UserViewModel) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -166,7 +166,7 @@ private fun StatusItem(icon: ImageVector, label: String, value: String) {
 }
 
 @Composable
-private fun BasalCard(viewModel: PumpViewModel) {
+private fun BasalCard(viewModel: UserViewModel) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Basal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -201,7 +201,7 @@ private fun BasalCard(viewModel: PumpViewModel) {
 }
 
 @Composable
-private fun BolusCard(viewModel: PumpViewModel) {
+private fun BolusCard(viewModel: UserViewModel) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Bolus", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -234,7 +234,7 @@ private fun BolusCard(viewModel: PumpViewModel) {
 }
 
 @Composable
-private fun OptionsCard(viewModel: PumpViewModel) {
+private fun OptionsCard(viewModel: UserViewModel) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Settings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

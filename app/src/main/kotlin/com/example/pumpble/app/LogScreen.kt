@@ -18,7 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun LogScreen(viewModel: PumpViewModel) {
+fun LogScreen(viewModel: LogViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()

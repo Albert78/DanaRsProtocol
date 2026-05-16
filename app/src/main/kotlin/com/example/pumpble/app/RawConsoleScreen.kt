@@ -41,7 +41,7 @@ import java.util.TimeZone
 
 @Composable
 fun RawConsoleView(
-    viewModel: PumpViewModel,
+    viewModel: RawViewModel,
     onPermissionRequest: () -> Unit
 ) {
     LazyColumn(
@@ -87,7 +87,7 @@ private fun Header(connectionState: String) {
 }
 
 @Composable
-private fun GattProfileSection(viewModel: PumpViewModel) {
+private fun GattProfileSection(viewModel: RawViewModel) {
     SectionTitle("GATT Profile")
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedTextField(
@@ -108,7 +108,7 @@ private fun GattProfileSection(viewModel: PumpViewModel) {
 }
 
 @Composable
-private fun DeviceSection(viewModel: PumpViewModel) {
+private fun DeviceSection(viewModel: RawViewModel) {
     SectionTitle("BLE Device")
     Button(
         onClick = { if (viewModel.isScanning) viewModel.stopScan() else viewModel.startScan() },
@@ -149,7 +149,7 @@ private fun DeviceSection(viewModel: PumpViewModel) {
 }
 
 @Composable
-private fun SessionSection(viewModel: PumpViewModel) {
+private fun SessionSection(viewModel: RawViewModel) {
     SectionTitle("Session")
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedTextField(
@@ -188,7 +188,7 @@ private fun SessionSection(viewModel: PumpViewModel) {
 }
 
 @Composable
-private fun ReadCommandSection(viewModel: PumpViewModel) {
+private fun ReadCommandSection(viewModel: RawViewModel) {
     SectionTitle("Read Commands")
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         CommandRow {
@@ -237,7 +237,7 @@ private fun ReadCommandSection(viewModel: PumpViewModel) {
 }
 
 @Composable
-private fun ControlCommandSection(viewModel: PumpViewModel) {
+private fun ControlCommandSection(viewModel: RawViewModel) {
     SectionTitle("Write And Control Commands")
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Switch(checked = viewModel.controlArmed, onCheckedChange = { viewModel.controlArmed = it })
@@ -330,7 +330,7 @@ private fun CommandRow(content: @Composable RowScope.() -> Unit) {
 
 @Composable
 private fun CommandButton(
-    viewModel: PumpViewModel,
+    viewModel: RawViewModel,
     text: String,
     icon: ImageVector,
     modifier: Modifier = Modifier.fillMaxWidth(),
