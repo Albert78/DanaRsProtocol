@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import java.util.Date
 
@@ -150,34 +151,34 @@ private fun StatusDashboard(viewModel: UserViewModel) {
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(Modifier.height(16.dp))
+            if (viewModel.sessionReady) {
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(), 
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                StatusItem(
-                    icon = Icons.Default.BatteryStd,
-                    label = "Battery",
-                    value = viewModel.pumpStatus?.batteryRemainingPercent?.let { "$it%" } ?: "--"
-                )
-                StatusItem(
-                    icon = Icons.Default.WaterDrop,
-                    label = "Reservoir",
-                    value = viewModel.pumpStatus?.reservoirRemainingUnits?.let { "%.1f U".format(it) } ?: "--"
-                )
-                StatusItem(
-                    icon = Icons.Default.BluetoothConnected,
-                    label = "Last Sync",
-                    value = viewModel.lastSyncTime?.let {
-                        java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(Date(it))
-                    } ?: "--"
-                )
-                
-                if (viewModel.sessionReady) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(), 
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    StatusItem(
+                        icon = Icons.Default.BatteryStd,
+                        label = "Battery",
+                        value = viewModel.pumpStatus?.batteryRemainingPercent?.let { "$it%" } ?: "--"
+                    )
+                    StatusItem(
+                        icon = Icons.Default.WaterDrop,
+                        label = "Reservoir",
+                        value = viewModel.pumpStatus?.reservoirRemainingUnits?.let { "%.1f U".format(it) } ?: "--"
+                    )
+                    StatusItem(
+                        icon = Icons.Default.BluetoothConnected,
+                        label = "Last Sync",
+                        value = viewModel.lastSyncTime?.let {
+                            java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(Date(it))
+                        } ?: "--"
+                    )
+                    
                     OutlinedButton(
                         onClick = { viewModel.refreshAllStatus() },
                         enabled = viewModel.activeCommand == null,
@@ -194,6 +195,15 @@ private fun StatusDashboard(viewModel: UserViewModel) {
                         }
                     }
                 }
+            } else {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "Bitte verbinden Sie sich zuerst mit der Pumpe, um den Status zu sehen.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }
