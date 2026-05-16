@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
         }
 
         var currentScreen by remember {
-            mutableStateOf<AppScreen>(AppScreen.RAW_CONSOLE)
+            mutableStateOf<AppScreen>(AppScreen.USER_CONTROL)
         }
 
         MaterialTheme(
@@ -76,16 +76,16 @@ class MainActivity : ComponentActivity() {
                 bottomBar = {
                     NavigationBar {
                         NavigationBarItem(
-                            selected = currentScreen == AppScreen.RAW_CONSOLE,
-                            onClick = { currentScreen = AppScreen.RAW_CONSOLE },
-                            icon = { Icon(Icons.Default.DeveloperMode, contentDescription = null) },
-                            label = { Text("Raw Console") },
-                        )
-                        NavigationBarItem(
                             selected = currentScreen == AppScreen.USER_CONTROL,
                             onClick = { currentScreen = AppScreen.USER_CONTROL },
                             icon = { Icon(Icons.Default.SettingsRemote, contentDescription = null) },
                             label = { Text("User Control") },
+                        )
+                        NavigationBarItem(
+                            selected = currentScreen == AppScreen.RAW_CONSOLE,
+                            onClick = { currentScreen = AppScreen.RAW_CONSOLE },
+                            icon = { Icon(Icons.Default.DeveloperMode, contentDescription = null) },
+                            label = { Text("Raw Console") },
                         )
                         NavigationBarItem(
                             selected = currentScreen == AppScreen.LOGS,
