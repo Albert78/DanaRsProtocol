@@ -91,6 +91,7 @@ class DanaRsCommands {
 
     fun bolusGet24CIRCFArray() = BolusGet24CIRCFArrayCommand()
     fun bolusGetBolusOption() = BolusGetBolusOptionCommand()
+    fun bolusGetBolusRate() = com.example.pumpble.dana.commands.bolus.BolusGetBolusRateCommand()
     fun bolusGetCalculationInformation() = BolusGetCalculationInformationCommand()
     fun bolusGetCIRCFArray() = BolusGetCIRCFArrayCommand()
     fun bolusGetStepBolusInformation() = BolusGetStepBolusInformationCommand()
@@ -113,6 +114,16 @@ class DanaRsCommands {
         bolusCalculationOption = bolusCalculationOption,
         missedBolusConfig = missedBolusConfig,
         missedBolusWindows = missedBolusWindows,
+    )
+
+    fun bolusSetBolusRate(
+        maxBolusUnits: Double,
+        bolusStepUnits: Double,
+        speed: DanaRsBolusSpeed,
+    ) = com.example.pumpble.dana.commands.bolus.BolusSetBolusRateCommand(
+        maxBolusUnits = maxBolusUnits,
+        bolusStepUnits = bolusStepUnits,
+        speed = speed,
     )
 
     fun etcKeepConnection() = EtcKeepConnectionCommand()

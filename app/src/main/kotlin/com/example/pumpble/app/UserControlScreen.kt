@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.pumpble.dana.commands.DanaRsBolusSpeed
 import java.util.Date
 
 @Composable
@@ -594,6 +595,31 @@ private fun UserOptionsDialog(viewModel: UserViewModel) {
                         enabled = !viewModel.isSavingUserOptions
                     )
                 }
+
+                item {
+                    OutlinedTextField(
+                        value = viewModel.userOptionsTargetInput,
+                        onValueChange = { viewModel.userOptionsTargetInput = it },
+                        label = { Text("Glucose Target") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !viewModel.isSavingUserOptions
+                    )
+                }
+
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Glucose Units", style = MaterialTheme.typography.bodyLarge)
+                            Text(if (options.units == 0) "mg/dL" else "mmol/L", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(
+                            checked = options.units != 0,
+                            onCheckedChange = { viewModel.editingUserOptions = options.copy(units = if (it) 1 else 0) },
+                            enabled = !viewModel.isSavingUserOptions
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
@@ -673,12 +699,62 @@ private fun BasalProfileDialog(viewModel: UserViewModel) {
 @Composable
 private fun BolusOptionsDialog(viewModel: UserViewModel) {
     val options = viewModel.editingBolusOptions ?: return
+    val rate = viewModel.editingBolusRate ?: return
 
     AlertDialog(
         onDismissRequest = { if (!viewModel.isSavingBolusOptions) viewModel.showBolusOptionsDialog = false },
         title = { Text("Bolus Options") },
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
+                item {
+                    Text("Limits & Speed", style = MaterialTheme.typography.titleSmall)
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = rate.maxBolusUnits.toString(),
+                        onValueChange = { 
+                            val value = it.toDoubleOrNull() ?: rate.maxBolusUnits
+                            viewModel.editingBolusRate = rate.copy(maxBolusUnits = value)
+                        },
+                        label = { Text("Max Bolus (Units)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !viewModel.isSavingBolusOptions
+                    )
+                }
+
+                item {
+                    Column {
+                        Text("Bolus Speed", style = MaterialTheme.typography.bodyLarge)
+                        Text("Delivery time per unit", style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            DanaRsBolusSpeed.entries.forEach { speed ->
+                                val selected = rate.bolusSpeed == speed
+                                OutlinedButton(
+                                    onClick = { viewModel.editingBolusRate = rate.copy(bolusSpeed = speed) },
+                                    enabled = !viewModel.isSavingBolusOptions,
+                                    colors = if (selected) 
+                                        ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                                        else ButtonDefaults.outlinedButtonColors(),
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text(
+                                        text = speed.name.replace("U", "").replace("_", " "),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    HorizontalDivider(thickness = 0.5.dp)
+                }
+
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {

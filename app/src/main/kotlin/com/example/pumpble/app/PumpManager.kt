@@ -14,6 +14,7 @@ import com.example.pumpble.dana.DanaPumpClientFactory
 import com.example.pumpble.dana.commands.DanaRsCommands
 import com.example.pumpble.dana.commands.basal.BasalRateProfileResponse
 import com.example.pumpble.dana.commands.bolus.BolusOptionResponse
+import com.example.pumpble.dana.commands.bolus.BolusRateResponse
 import com.example.pumpble.dana.commands.bolus.BolusStepBolusInformationResponse
 import com.example.pumpble.dana.commands.general.GeneralInitialScreenInformationResponse
 import com.example.pumpble.dana.commands.options.OptionPumpUtcAndTimeZoneResponse
@@ -57,6 +58,7 @@ object PumpManager {
     var pumpStatus by mutableStateOf<GeneralInitialScreenInformationResponse?>(null)
     var userOptions by mutableStateOf<OptionUserOptionsResponse?>(null)
     var bolusOptions by mutableStateOf<BolusOptionResponse?>(null)
+    var bolusRate by mutableStateOf<BolusRateResponse?>(null)
     var stepBolusInfo by mutableStateOf<BolusStepBolusInformationResponse?>(null)
     var basalRateInfo by mutableStateOf<BasalRateProfileResponse?>(null)
     var pumpTimeInfo by mutableStateOf<OptionPumpUtcAndTimeZoneResponse?>(null)

@@ -13,6 +13,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pumpble.dana.commands.DanaRsBolusSpeed
 import com.example.pumpble.dana.commands.bolus.BolusOptionResponse
+import com.example.pumpble.dana.commands.bolus.BolusRateResponse
 import com.example.pumpble.dana.commands.options.DanaRsUserOptions
 import kotlinx.coroutines.launch
 
@@ -27,12 +28,13 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     val pumpStatus get() = PumpManager.pumpStatus
     val userOptions get() = PumpManager.userOptions
     val bolusOptions get() = PumpManager.bolusOptions
+    val bolusRate get() = PumpManager.bolusRate
     val stepBolusInfo get() = PumpManager.stepBolusInfo
     val basalRateInfo get() = PumpManager.basalRateInfo
     val pumpTimeInfo get() = PumpManager.pumpTimeInfo
-    
+
     var activeCommand by mutableStateOf<String?>(null)
-    
+
     // Scan logic for User Screen
     val discoveredDevices = mutableStateListOf<DiscoveredPump>()
     var isScanning by mutableStateOf(false)
@@ -48,10 +50,12 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     var showUserOptionsDialog by mutableStateOf(false)
     var editingUserOptions by mutableStateOf<DanaRsUserOptions?>(null)
     var isSavingUserOptions by mutableStateOf(false)
+    var userOptionsTargetInput by mutableStateOf("0")
 
     // Bolus Options Dialog State
     var showBolusOptionsDialog by mutableStateOf(false)
     var editingBolusOptions by mutableStateOf<BolusOptionResponse?>(null)
+    var editingBolusRate by mutableStateOf<BolusRateResponse?>(null)
     var isSavingBolusOptions by mutableStateOf(false)
 
     // Basal Profile Dialog State
@@ -76,12 +80,12 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         val scanner = bluetoothManager.adapter?.bluetoothLeScanner ?: return
         discoveredDevices.clear()
         isScanning = true
-        
+
         val lastAddress = PumpManager.getLastStoredAddress()
         isSearchingLastDevice = lastAddress != null && selectedDevice == null
 
         scanner.startScan(scanCallback)
-        
+
         // Auto-stop scan after some time
         viewModelScope.launch {
             kotlinx.coroutines.delay(15000)
@@ -102,7 +106,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device = result.device ?: return
             val name = device.name.orEmpty()
-            
+
             // Dana pumps always have a 10-character serial number as their name
             if (name.length != 10) return
 
@@ -112,10 +116,10 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                 rssi = result.rssi,
                 device = device,
             )
-            
+
             val index = discoveredDevices.indexOfFirst { it.address == item.address }
             if (index >= 0) discoveredDevices[index] = item else discoveredDevices += item
-            
+
             // Auto-select last device
             if (isSearchingLastDevice && item.address == PumpManager.getLastStoredAddress()) {
                 selectedDevice = item
@@ -140,7 +144,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 activeCommand = "Connecting"
                 PumpManager.connect(context, pump, PumpManager.DEFAULT_TX_UUID, PumpManager.DEFAULT_RX_UUID)
-                
+
                 activeCommand = "Handshake"
                 val deviceName = pump.name.ifBlank { "" }
                 if (deviceName.length == 10) {
@@ -170,7 +174,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                 val timeZone = java.util.TimeZone.getDefault()
                 val currentTime = System.currentTimeMillis()
                 val currentOffsetHours = timeZone.getOffset(currentTime) / 3_600_000
-                
+
                 LogManager.log("Syncing pump time (UTC with offset $currentOffsetHours)...")
                 val response = PumpManager.execute(
                     PumpManager.commands.optionSetPumpUtcAndTimeZone(currentTime, currentOffsetHours)
@@ -201,6 +205,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                 PumpManager.basalRateInfo = PumpManager.execute(PumpManager.commands.basalGetBasalRate())
                 PumpManager.userOptions = PumpManager.execute(PumpManager.commands.optionGetUserOption())
                 PumpManager.bolusOptions = PumpManager.execute(PumpManager.commands.bolusGetBolusOption())
+                PumpManager.bolusRate = PumpManager.execute(PumpManager.commands.bolusGetBolusRate())
                 PumpManager.stepBolusInfo = PumpManager.execute(PumpManager.commands.bolusGetStepBolusInformation())
                 PumpManager.pumpTimeInfo = PumpManager.execute(PumpManager.commands.optionGetPumpUtcAndTimeZone())
 
@@ -225,7 +230,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                 activeCommand = "Loading Options"
                 val response = PumpManager.execute(PumpManager.commands.optionGetUserOption())
                 PumpManager.userOptions = response
-                
+
                 // Convert response to editable object
                 editingUserOptions = DanaRsUserOptions(
                     hwModel = response.selectableLanguages.size.let { if (it > 0) 7 else 0 }, // Simplified HW model detection
@@ -242,6 +247,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                     refillAmount = response.refillAmount,
                     target = response.target ?: 0
                 )
+                userOptionsTargetInput = (response.target ?: 0).toString()
                 showUserOptionsDialog = true
             } catch (e: Exception) {
                 LogManager.log("Failed to fetch user options: ${e.message}")
@@ -252,7 +258,12 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveUserOptions() {
-        val options = editingUserOptions ?: return
+        var options = editingUserOptions ?: return
+
+        // Update target from string input
+        val targetValue = userOptionsTargetInput.toIntOrNull() ?: options.target
+        options = options.copy(target = targetValue)
+
         viewModelScope.launch {
             try {
                 isSavingUserOptions = true
@@ -279,9 +290,14 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 activeCommand = "Loading Bolus Options"
-                val response = PumpManager.execute(PumpManager.commands.bolusGetBolusOption())
-                PumpManager.bolusOptions = response
-                editingBolusOptions = response
+                val optionsResponse = PumpManager.execute(PumpManager.commands.bolusGetBolusOption())
+                val rateResponse = PumpManager.execute(PumpManager.commands.bolusGetBolusRate())
+
+                PumpManager.bolusOptions = optionsResponse
+                PumpManager.bolusRate = rateResponse
+
+                editingBolusOptions = optionsResponse
+                editingBolusRate = rateResponse
                 showBolusOptionsDialog = true
             } catch (e: Exception) {
                 LogManager.log("Failed to fetch bolus options: ${e.message}")
@@ -293,11 +309,23 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveBolusOptions() {
         val options = editingBolusOptions ?: return
+        val rate = editingBolusRate ?: return
+
         viewModelScope.launch {
             try {
                 isSavingBolusOptions = true
                 activeCommand = "Saving Bolus Options"
-                LogManager.log("Saving Bolus Options...")
+
+                LogManager.log("Saving Bolus Rate/Limits...")
+                PumpManager.execute(
+                    PumpManager.commands.bolusSetBolusRate(
+                        maxBolusUnits = rate.maxBolusUnits,
+                        bolusStepUnits = rate.bolusStepUnits,
+                        speed = rate.bolusSpeed
+                    )
+                )
+
+                LogManager.log("Saving Bolus Calculation Options...")
                 val response = PumpManager.execute(
                     PumpManager.commands.bolusSetBolusOption(
                         extendedBolusEnabled = options.extendedBolusEnabled,
@@ -306,6 +334,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                         missedBolusWindows = options.missedBolusWindows
                     )
                 )
+
                 LogManager.log("Save Bolus Options result: ${response.status}")
                 showBolusOptionsDialog = false
                 refreshAllStatus()
@@ -345,10 +374,10 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                 isSavingBasalProfile = true
                 activeCommand = "Saving Basal Profile"
                 LogManager.log("Saving Basal Profile...")
-                
+
                 // Fetch current profile number first
                 val profileInfo = PumpManager.execute(PumpManager.commands.basalGetProfileNumber())
-                
+
                 val response = PumpManager.execute(
                     PumpManager.commands.basalSetProfileBasalRate(
                         profileNumber = profileInfo.activeProfile,
@@ -372,11 +401,11 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
             LogManager.log("Action failed: Handshake required")
             return
         }
-        
+
         // Use last known step bolus amount or a safe default
         bolusAmountInput = "0.00"
         showBolusDialog = true
-        
+
         // Auto-refresh bolus info if it's missing or old
         if (stepBolusInfo == null) {
             viewModelScope.launch {
@@ -395,23 +424,23 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     fun startStepBolus() {
         val amount = bolusAmountInput.toDoubleOrNull() ?: return
         if (amount <= 0) return
-        
+
         viewModelScope.launch {
             try {
                 isProcessingBolus = true
                 activeCommand = "Sending Bolus"
                 LogManager.log("Sending Bolus: $amount U...")
-                
+
                 val response = PumpManager.execute(
                     PumpManager.commands.bolusSetStepBolusStart(
                         amountUnits = amount,
                         speed = bolusSpeed
                     )
                 )
-                
+
                 LogManager.log("Bolus result: ${response.status}")
                 showBolusDialog = false
-                
+
                 // Refresh status after a short delay to see the updated reservoir/IOB
                 kotlinx.coroutines.delay(2000)
                 refreshAllStatus()
@@ -423,7 +452,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    
+
     fun stopBolus() {
         viewModelScope.launch {
             try {
@@ -450,7 +479,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     fun startTempBasal() {
         val percent = tempBasalPercentInput.toIntOrNull() ?: return
         val duration = tempBasalDurationInput.toIntOrNull() ?: return
-        
+
         viewModelScope.launch {
             try {
                 isProcessingTempBasal = true

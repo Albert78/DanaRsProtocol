@@ -180,6 +180,35 @@ class BolusSet24CIRCFArrayCommand(
     }
 }
 
+class BolusGetBolusRateCommand :
+    DanaRsPacketCommand<BolusRateResponse>(DanaRsPacketRegistry.BOLUS_GET_BOLUS_RATE) {
+    override fun decodePayload(reader: ByteReader): BolusRateResponse {
+        reader.requireRemainingAtLeast(4, name)
+        val maxBolus = reader.readUInt16Le() / 100.0
+        val bolusStep = reader.readUInt8() / 100.0
+        val speedRaw = reader.readUInt8()
+        reader.discardRemaining()
+        return BolusRateResponse(
+            status = PumpStatus.OK,
+            maxBolusUnits = maxBolus,
+            bolusStepUnits = bolusStep,
+            bolusSpeed = DanaRsBolusSpeed.fromWireValue(speedRaw),
+        )
+    }
+}
+
+class BolusSetBolusRateCommand(
+    private val maxBolusUnits: Double,
+    private val bolusStepUnits: Double,
+    private val speed: DanaRsBolusSpeed,
+) : DanaRsAckPacketCommand(DanaRsPacketRegistry.BOLUS_SET_BOLUS_RATE) {
+    override fun encodePayload(writer: ByteWriter) {
+        writer.writeBytes(le16((maxBolusUnits * 100.0).roundToInt()))
+        writer.writeUInt8((bolusStepUnits * 100.0).roundToInt())
+        writer.writeUInt8(speed.wireValue)
+    }
+}
+
 class BolusSetBolusOptionCommand(
     private val extendedBolusEnabled: Boolean,
     private val bolusCalculationOption: Int,
