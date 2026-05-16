@@ -1,5 +1,6 @@
 package com.example.pumpble.app
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -598,6 +599,110 @@ private fun UserOptionsDialog(viewModel: UserViewModel) {
 
                 item {
                     OutlinedTextField(
+                        value = options.backlightOnTimeSec.toString(),
+                        onValueChange = {
+                            val value = it.toIntOrNull() ?: options.backlightOnTimeSec
+                            viewModel.editingUserOptions = options.copy(backlightOnTimeSec = value)
+                        },
+                        label = { Text("Backlight On Time (sec)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !viewModel.isSavingUserOptions
+                    )
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = options.shutdownHour.toString(),
+                        onValueChange = {
+                            val value = it.toIntOrNull() ?: options.shutdownHour
+                            viewModel.editingUserOptions = options.copy(shutdownHour = value)
+                        },
+                        label = { Text("Auto Shutdown (hours)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !viewModel.isSavingUserOptions
+                    )
+                }
+
+                item {
+                    HorizontalDivider(thickness = 0.5.dp)
+                    Text("Safety & Thresholds", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = options.lowReservoirRate.toString(),
+                        onValueChange = {
+                            val value = it.toIntOrNull() ?: options.lowReservoirRate
+                            viewModel.editingUserOptions = options.copy(lowReservoirRate = value)
+                        },
+                        label = { Text("Low Reservoir Warning") },
+                        suffix = { Text("U") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !viewModel.isSavingUserOptions
+                    )
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = (options.cannulaVolume / 100.0).toString(),
+                        onValueChange = {
+                            val value = ((it.toDoubleOrNull() ?: (options.cannulaVolume / 100.0)) * 100.0).toInt()
+                            viewModel.editingUserOptions = options.copy(cannulaVolume = value)
+                        },
+                        label = { Text("Cannula Volume (Priming)") },
+                        suffix = { Text("U") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !viewModel.isSavingUserOptions
+                    )
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = (options.refillAmount / 100.0).toString(),
+                        onValueChange = {
+                            val value = ((it.toDoubleOrNull() ?: (options.refillAmount / 100.0)) * 100.0).toInt()
+                            viewModel.editingUserOptions = options.copy(refillAmount = value)
+                        },
+                        label = { Text("Refill Amount") },
+                        suffix = { Text("U") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !viewModel.isSavingUserOptions
+                    )
+                }
+
+                item {
+                    HorizontalDivider(thickness = 0.5.dp)
+                    Text("Regional", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+                }
+
+                item {
+                    Column {
+                        Text("Pump Language", style = MaterialTheme.typography.bodyLarge)
+                        val languages = viewModel.userOptions?.selectableLanguages ?: listOf(options.selectedLanguage)
+                        Row(modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            languages.forEach { langId ->
+                                val selected = options.selectedLanguage == langId
+                                OutlinedButton(
+                                    onClick = { viewModel.editingUserOptions = options.copy(selectedLanguage = langId) },
+                                    enabled = !viewModel.isSavingUserOptions,
+                                    colors = if (selected)
+                                        ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                                        else ButtonDefaults.outlinedButtonColors()
+                                ) {
+                                    Text("ID $langId")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    OutlinedTextField(
                         value = viewModel.userOptionsTargetInput,
                         onValueChange = { viewModel.userOptionsTargetInput = it },
                         label = { Text("Glucose Target") },
@@ -608,16 +713,23 @@ private fun UserOptionsDialog(viewModel: UserViewModel) {
                 }
 
                 item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Glucose Units", style = MaterialTheme.typography.bodyLarge)
-                            Text(if (options.units == 0) "mg/dL" else "mmol/L", style = MaterialTheme.typography.bodySmall)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Glucose Units", style = MaterialTheme.typography.bodyLarge)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(0 to "mg/dL", 1 to "mmol/L").forEach { (value, label) ->
+                                val selected = options.units == value
+                                OutlinedButton(
+                                    onClick = { viewModel.editingUserOptions = options.copy(units = value) },
+                                    enabled = !viewModel.isSavingUserOptions,
+                                    colors = if (selected)
+                                        ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                                        else ButtonDefaults.outlinedButtonColors(),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(label)
+                                }
+                            }
                         }
-                        Switch(
-                            checked = options.units != 0,
-                            onCheckedChange = { viewModel.editingUserOptions = options.copy(units = if (it) 1 else 0) },
-                            enabled = !viewModel.isSavingUserOptions
-                        )
                     }
                 }
             }
