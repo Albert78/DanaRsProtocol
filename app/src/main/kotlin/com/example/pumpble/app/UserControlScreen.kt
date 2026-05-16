@@ -899,15 +899,15 @@ private fun BolusOptionsDialog(viewModel: UserViewModel) {
 
                 if (options.missedBolusConfig != 0) {
                     item {
-                        Text("Reminder Windows", style = MaterialTheme.typography.titleSmall)
+                        Text("Reminder Windows", style = MaterialTheme.typography.titleMedium)
                     }
                     items(options.missedBolusWindows.size) { index ->
                         val window = options.missedBolusWindows[index]
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                         ) {
-                            Column(Modifier.padding(8.dp)) {
-                                Text("Window ${index + 1}", style = MaterialTheme.typography.labelSmall)
+                            Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Window ${index + 1}", style = MaterialTheme.typography.bodyLarge)
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -977,31 +977,33 @@ private fun TimeInputField(
     enabled: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
-            value = "%02d".format(hour),
-            onValueChange = {
-                val h = it.toIntOrNull()?.coerceIn(0, 23) ?: hour
-                onValueChange(h, minute)
-            },
-            label = { Text(label) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f),
-            enabled = enabled,
-            singleLine = true
-        )
-        Text(":", modifier = Modifier.padding(horizontal = 4.dp))
-        OutlinedTextField(
-            value = "%02d".format(minute),
-            onValueChange = {
-                val m = it.toIntOrNull()?.coerceIn(0, 59) ?: minute
-                onValueChange(hour, m)
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f),
-            enabled = enabled,
-            singleLine = true
-        )
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, style = MaterialTheme.typography.labelSmall)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = "%02d".format(hour),
+                onValueChange = {
+                    val h = it.toIntOrNull()?.coerceIn(0, 23) ?: hour
+                    onValueChange(h, minute)
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+                singleLine = true
+            )
+            Text(":", modifier = Modifier.padding(horizontal = 4.dp))
+            OutlinedTextField(
+                value = "%02d".format(minute),
+                onValueChange = {
+                    val m = it.toIntOrNull()?.coerceIn(0, 59) ?: minute
+                    onValueChange(hour, m)
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+                singleLine = true
+            )
+        }
     }
 }
 

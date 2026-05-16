@@ -13,11 +13,13 @@ import com.example.pumpble.dana.commands.basal.BasalSetSuspendOnCommand
 import com.example.pumpble.dana.commands.basal.BasalSetTemporaryBasalCommand
 import com.example.pumpble.dana.commands.bolus.BolusGet24CIRCFArrayCommand
 import com.example.pumpble.dana.commands.bolus.BolusGetBolusOptionCommand
+import com.example.pumpble.dana.commands.bolus.BolusGetBolusRateCommand
 import com.example.pumpble.dana.commands.bolus.BolusGetCIRCFArrayCommand
 import com.example.pumpble.dana.commands.bolus.BolusGetCalculationInformationCommand
 import com.example.pumpble.dana.commands.bolus.BolusGetStepBolusInformationCommand
 import com.example.pumpble.dana.commands.bolus.BolusSet24CIRCFArrayCommand
 import com.example.pumpble.dana.commands.bolus.BolusSetBolusOptionCommand
+import com.example.pumpble.dana.commands.bolus.BolusSetBolusRateCommand
 import com.example.pumpble.dana.commands.bolus.BolusSetExtendedBolusCancelCommand
 import com.example.pumpble.dana.commands.bolus.BolusSetExtendedBolusCommand
 import com.example.pumpble.dana.commands.bolus.BolusSetStepBolusStartCommand
@@ -91,7 +93,7 @@ class DanaRsCommands {
 
     fun bolusGet24CIRCFArray() = BolusGet24CIRCFArrayCommand()
     fun bolusGetBolusOption() = BolusGetBolusOptionCommand()
-    fun bolusGetBolusRate() = com.example.pumpble.dana.commands.bolus.BolusGetBolusRateCommand()
+    fun bolusGetBolusRate() = BolusGetBolusRateCommand()
     fun bolusGetCalculationInformation() = BolusGetCalculationInformationCommand()
     fun bolusGetCIRCFArray() = BolusGetCIRCFArrayCommand()
     fun bolusGetStepBolusInformation() = BolusGetStepBolusInformationCommand()
@@ -120,7 +122,7 @@ class DanaRsCommands {
         maxBolusUnits: Double,
         bolusStepUnits: Double,
         speed: DanaRsBolusSpeed,
-    ) = com.example.pumpble.dana.commands.bolus.BolusSetBolusRateCommand(
+    ) = BolusSetBolusRateCommand(
         maxBolusUnits = maxBolusUnits,
         bolusStepUnits = bolusStepUnits,
         speed = speed,

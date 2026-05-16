@@ -192,6 +192,7 @@ class BolusSet24CIRCFArrayCommand(
     }
 }
 
+// TODO: What is this? Always returns values of 0 on Dana-i.
 class BolusGetBolusRateCommand :
     DanaRsPacketCommand<BolusRateResponse>(DanaRsPacketRegistry.BOLUS_GET_BOLUS_RATE) {
     override fun decodePayload(reader: ByteReader): BolusRateResponse {
@@ -209,6 +210,7 @@ class BolusGetBolusRateCommand :
     }
 }
 
+// TODO: Not tested
 class BolusSetBolusRateCommand(
     private val maxBolusUnits: Double,
     private val bolusStepUnits: Double,
